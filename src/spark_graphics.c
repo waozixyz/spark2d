@@ -107,3 +107,7 @@ void spark_graphics_print_centered(const char* text, float x, float y, float w, 
    
    spark_graphics_print(text, text_x, text_y);
 }
+
+SDL_Renderer* spark_graphics_get_renderer(void) {
+    return spark.renderer;
+}

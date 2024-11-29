@@ -322,3 +322,12 @@ void spark_font_draw_char(SparkFont* font, char c, float x, float y) {
     
     SDL_RenderTexture(font->renderer, font->bitmap.texture, &src, &dst);
 }
+
+static SparkFont* g_default_font = NULL;
+
+SparkFont* spark_font_get_default(SDL_Renderer* renderer) {
+    if (!g_default_font) {
+        g_default_font = spark_font_new_default(renderer);
+    }
+    return g_default_font;
+}

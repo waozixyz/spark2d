@@ -31,4 +31,6 @@ void spark_graphics_text_set_color(SparkText* text, float r, float g, float b, f
 void spark_graphics_text_draw(SparkText* text, float x, float y);
 void spark_graphics_text_free(SparkText* text);
 
+SDL_Renderer* spark_graphics_get_renderer(void);
+
 #endif

@@ -29,4 +29,6 @@ float spark_font_get_height(SparkFont* font);
 float spark_font_get_width(SparkFont* font);
 void spark_font_draw_char(SparkFont* font, char c, float x, float y);
 
+SparkFont* spark_font_get_default(SDL_Renderer* renderer);
+
 #endif
