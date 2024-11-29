@@ -8,7 +8,10 @@
 
 static SparkButton* button;
 
-void button_callback(void) {
+
+void button_callback(void* user_data) {
+    // You can use user_data if needed, for now we ignore it.
+    (void)user_data;
     printf("Button clicked!\n");
 }
 
@@ -18,7 +21,7 @@ void load(void) {
         fprintf(stderr, "Failed to create button\n");
         return;
     }
-    spark_ui_button_set_callback(button, button_callback);
+    spark_ui_button_set_callback(button, button_callback, NULL);
 }
 
 void update(float dt) {

@@ -20,8 +20,8 @@ typedef struct SparkText {
     SparkFont* font;
     SDL_Color color;
     const char* text;
-    float width;
-    float height;  
+    float width;    // Base width (unscaled)
+    float height;   // Base height (unscaled)
     SDL_Texture* texture;
 } SparkText;
 
@@ -30,6 +30,7 @@ SparkText* spark_graphics_new_text(SparkFont* font, const char* text);
 void spark_graphics_text_set_color(SparkText* text, float r, float g, float b, float a);
 void spark_graphics_text_draw(SparkText* text, float x, float y);
 void spark_graphics_text_free(SparkText* text);
+void spark_graphics_text_get_scaled_size(SparkText* text, float* width, float* height);
 
 SDL_Renderer* spark_graphics_get_renderer(void);
 

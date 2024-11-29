@@ -79,62 +79,6 @@ static bool point_in_rect(float px, float py, float x, float y, float w, float h
     return px >= x && px <= x + w && py >= y && py <= y + h;
 }
 
-void spark_ui_button_update(SparkButton* button) {
-    float mx, my;
-    uint32_t mouse_state = SDL_GetMouseState(&mx, &my);
-    button->hovered = point_in_rect(mx, my, button->x, button->y,
-                                  button->width, button->height);
-    bool mouse_down = (mouse_state & SDL_BUTTON_LMASK) != 0;
-    if (button->hovered && mouse_down && !button->pressed) {
-        button->pressed = true;
-    } else if (!mouse_down && button->pressed) {
-        if (button->hovered && button->callback) {
-            button->callback(button->user_data);  // Pass user_data to callback
-        }
-        button->pressed = false;
-    }
-}
-
-
-void spark_ui_button_draw(SparkButton* button) {
-    // Draw button background
-    if (button->pressed) {
-        spark_graphics_set_color(0.6f, 0.6f, 0.6f);
-    } else if (button->hovered) {
-        spark_graphics_set_color(0.8f, 0.8f, 0.8f);
-    } else {
-        spark_graphics_set_color(0.7f, 0.7f, 0.7f);
-    }
-    spark_graphics_rectangle("fill", button->x, button->y, button->width, button->height);
-    
-    // Draw button border
-    spark_graphics_set_color(0.3f, 0.3f, 0.3f);
-    spark_graphics_rectangle("line", button->x, button->y, button->width, button->height);
-    
-    // Draw text
-    if (button->text_texture) {
-        float text_x = button->x + (button->width - button->text_texture->width) / 2;
-        float text_y = button->y + (button->height - button->text_texture->height) / 2;
-        spark_graphics_text_draw(button->text_texture, text_x, text_y);
-    }
-}
-
-void spark_ui_button_free(SparkButton* button) {
-    if (button) {
-        if (button->text_texture) {
-            spark_graphics_text_free(button->text_texture);
-            button->text_texture = NULL;
-        }
-        if (button->text) {
-            free(button->text);
-            button->text = NULL;
-        }
-        free(button);
-    }
-}
-
-
-
 SparkTabBar* spark_ui_tabbar_new(float x, float y, float width, float height) {
     SparkTabBar* tabbar = malloc(sizeof(SparkTabBar));
     if (!tabbar) return NULL;
@@ -265,3 +209,99 @@ void spark_ui_tabbar_set_active_tab(SparkTabBar* tabbar, int index) {
         }
     }
 }
+
+void spark_ui_get_scale(float* scale_x, float* scale_y) {
+    spark_window_get_scale(scale_x, scale_y);
+}
+
+float spark_ui_scale_x(float x) {
+    float scale_x, scale_y;
+    spark_ui_get_scale(&scale_x, &scale_y);
+    return x * scale_x;
+}
+
+float spark_ui_scale_y(float y) {
+    float scale_x, scale_y;
+    spark_ui_get_scale(&scale_x, &scale_y);
+    return y * scale_y;
+}
+
+void spark_ui_screen_to_ui(float screen_x, float screen_y, float* ui_x, float* ui_y) {
+    float scale_x, scale_y;
+    spark_ui_get_scale(&scale_x, &scale_y);
+    
+    // Convert screen coordinates to UI space
+    *ui_x = screen_x / scale_x;
+    *ui_y = screen_y / scale_y;
+}
+
+void spark_ui_get_mouse_position(float* x, float* y) {
+    float mx, my;
+    SDL_GetMouseState(&mx, &my);
+    spark_ui_screen_to_ui(mx - spark.window_state.viewport.x, 
+                         my - spark.window_state.viewport.y, 
+                         x, y);
+}
+void spark_ui_button_draw(SparkButton* button) {
+    float scaled_x = spark_ui_scale_x(button->x);
+    float scaled_y = spark_ui_scale_y(button->y);
+    float scaled_width = spark_ui_scale_x(button->width);
+    float scaled_height = spark_ui_scale_y(button->height);
+
+    // Draw button background with scaled coordinates
+    if (button->pressed) {
+        spark_graphics_set_color(0.6f, 0.6f, 0.6f);
+    } else if (button->hovered) {
+        spark_graphics_set_color(0.8f, 0.8f, 0.8f);
+    } else {
+        spark_graphics_set_color(0.7f, 0.7f, 0.7f);
+    }
+    spark_graphics_rectangle("fill", scaled_x, scaled_y, scaled_width, scaled_height);
+    
+    // Draw text centered in scaled coordinates
+    if (button->text_texture) {
+        float text_width, text_height;
+        spark_graphics_text_get_scaled_size(button->text_texture, &text_width, &text_height);
+        
+        float text_x = scaled_x + (scaled_width - text_width) / 2;
+        float text_y = scaled_y + (scaled_height - text_height) / 2;
+        
+        spark_graphics_text_draw(button->text_texture, text_x, text_y);
+    }
+}
+// Modify button update to use UI coordinates
+void spark_ui_button_update(SparkButton* button) {
+    float mx, my;
+    spark_ui_get_mouse_position(&mx, &my);
+    
+    button->hovered = point_in_rect(mx, my, button->x, button->y,
+                                  button->width, button->height);
+    
+    uint32_t mouse_state = SDL_GetMouseState(NULL, NULL);
+    bool mouse_down = (mouse_state & SDL_BUTTON_LMASK) != 0;
+    
+    if (button->hovered && mouse_down && !button->pressed) {
+        button->pressed = true;
+    } else if (!mouse_down && button->pressed) {
+        if (button->hovered && button->callback) {
+            button->callback(button->user_data);
+        }
+        button->pressed = false;
+    }
+}
+
+
+void spark_ui_button_free(SparkButton* button) {
+    if (button) {
+        if (button->text_texture) {
+            spark_graphics_text_free(button->text_texture);
+            button->text_texture = NULL;
+        }
+        if (button->text) {
+            free(button->text);
+            button->text = NULL;
+        }
+        free(button);
+    }
+}
+

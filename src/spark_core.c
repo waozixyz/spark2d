@@ -41,6 +41,16 @@ bool spark_init(const char* title, int width, int height) {
     SDL_SetRenderDrawColor(spark.renderer, 0, 0, 0, 255);
     SDL_RenderClear(spark.renderer);
     SDL_RenderPresent(spark.renderer);
+
+
+    spark.window_state.base_width = width;
+    spark.window_state.base_height = height;
+    spark.window_state.mode = SPARK_WINDOW_MODE_FIXED;
+    spark.window_state.scale = SPARK_SCALE_NONE;
+    spark.window_state.scale_x = 1.0f;
+    spark.window_state.scale_y = 1.0f;
+    spark.window_state.viewport = (SDL_Rect){0, 0, width, height};
+    
     return true;
 }
 
@@ -73,6 +83,10 @@ int spark_run(void) {
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_QUIT) {
                 running = false;
+            } else if (event.type == SDL_EVENT_WINDOW_RESIZED) {
+                if (spark.window_state.mode == SPARK_WINDOW_MODE_RESPONSIVE) {
+                    spark_window_update_scale();
+                }
             }
         }
 

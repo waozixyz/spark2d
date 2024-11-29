@@ -42,3 +42,7 @@ examples: $(LIB)
 clean:
 	rm -rf $(OBJ_DIR) $(LIB)
 	$(MAKE) -C $(EXAMPLES_DIR) clean
+
+
+
+    
