@@ -3,8 +3,6 @@
 #include "spark_ui.h"
 #include "spark_graphics.h"
 #include <stdio.h>
-#include <SDL3/SDL.h>
-#include <SDL3_ttf/SDL_ttf.h>
 
 static SparkButton* button;
 

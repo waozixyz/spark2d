@@ -1,8 +1,11 @@
 #ifndef SPARK_FONT_H
 #define SPARK_FONT_H
-#include <SDL3/SDL.h>
+
 #include <SDL3_ttf/SDL_ttf.h>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 typedef enum {
     FONT_TYPE_TTF,
     FONT_TYPE_BITMAP

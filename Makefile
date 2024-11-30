@@ -1,14 +1,19 @@
 CC=gcc
+EMCC=emcc
 CFLAGS=-Wall -Wextra -I./include $(shell pkg-config --cflags sdl3-ttf)
 LDFLAGS=-lSDL3 -lSDL3_ttf $(shell pkg-config --libs sdl3-ttf)
-LIB=libspark2d.a
 
+# Emscripten flags
+EM_FLAGS=-s USE_SDL=3 -s USE_SDL_TTF=3 -s WASM=1 \
+        -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' \
+        -s EXPORTED_FUNCTIONS='["_main"]' \
+        -s ALLOW_MEMORY_GROWTH=1
+
+LIB=libspark2d.a
 SRC_DIR=src
 OBJ_DIR=obj
-EXAMPLES_DIR=examples
+WEB_OBJ_DIR=$(OBJ_DIR)/web
 
-# List specific source files we want to compile
-# This helps avoid duplicate implementations
 SOURCES = \
     $(SRC_DIR)/spark_core.c \
     $(SRC_DIR)/spark_graphics.c \
@@ -22,27 +27,25 @@ SOURCES = \
     $(SRC_DIR)/spark_audio.c
 
 OBJ=$(SOURCES:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
+WEB_OBJ=$(SOURCES:$(SRC_DIR)/%.c=$(WEB_OBJ_DIR)/%.o)
 
-.PHONY: all clean examples
+.PHONY: all clean web_lib
 
 all: $(LIB)
 
-$(OBJ_DIR):
-	mkdir -p $(OBJ_DIR)
+$(OBJ_DIR) $(WEB_OBJ_DIR):
+	mkdir -p $@
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
+$(WEB_OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(WEB_OBJ_DIR)
+	$(EMCC) $(CFLAGS) $(EM_FLAGS) -c $< -o $@
+
 $(LIB): $(OBJ)
 	ar rcs $@ $^
 
-examples: $(LIB)
-	$(MAKE) -C $(EXAMPLES_DIR)
+web_lib: $(WEB_OBJ)
 
 clean:
 	rm -rf $(OBJ_DIR) $(LIB)
-	$(MAKE) -C $(EXAMPLES_DIR) clean
-
-
-
-    

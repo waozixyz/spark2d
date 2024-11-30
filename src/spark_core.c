@@ -6,7 +6,57 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 Spark2D spark = {0};
+static bool should_quit = false;
+
+// Add this new function for the main loop
+static void main_loop_iteration(void) {
+    static Uint64 previous = 0;
+    if (previous == 0) {
+        previous = SDL_GetTicks();
+    }
+
+    SDL_Event event;
+    while (SDL_PollEvent(&event)) {
+        if (event.type == SDL_EVENT_QUIT) {
+            should_quit = true;  // Set the quit flag
+            #ifdef __EMSCRIPTEN__
+            emscripten_cancel_main_loop();
+            #endif
+            return;
+        } else if (event.type == SDL_EVENT_WINDOW_RESIZED) {
+            if (spark.window_state.mode == SPARK_WINDOW_MODE_RESPONSIVE) {
+                spark_window_update_scale();
+            }
+        }
+    }
+
+    // Return early if quit was requested
+    if (should_quit) {
+        return;
+    }
+    Uint64 current = SDL_GetTicks();
+    float dt = (current - previous) / 1000.0f;
+    previous = current;
+
+    if (spark.update) {
+        spark.update(dt);
+    }
+
+    SDL_SetRenderDrawColor(spark.renderer, 0, 0, 0, 255);
+    SDL_RenderClear(spark.renderer);
+
+    if (spark.draw) {
+        spark.draw();
+    }
+
+    SDL_RenderPresent(spark.renderer);
+}
+
 
 bool spark_init(const char* title, int width, int height) {
     if ((int)SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -75,38 +125,14 @@ int spark_run(void) {
         spark.load();
     }
 
-    Uint64 previous = SDL_GetTicks();
-    bool running = true;
-    SDL_Event event;
-
-    while (running) {
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_EVENT_QUIT) {
-                running = false;
-            } else if (event.type == SDL_EVENT_WINDOW_RESIZED) {
-                if (spark.window_state.mode == SPARK_WINDOW_MODE_RESPONSIVE) {
-                    spark_window_update_scale();
-                }
-            }
-        }
-
-        Uint64 current = SDL_GetTicks();
-        float dt = (current - previous) / 1000.0f;
-        previous = current;
-
-        if (spark.update) {
-            spark.update(dt);
-        }
-
-        SDL_SetRenderDrawColor(spark.renderer, 0, 0, 0, 255);
-        SDL_RenderClear(spark.renderer);
-
-        if (spark.draw) {
-            spark.draw();
-        }
-
-        SDL_RenderPresent(spark.renderer);
+    #ifdef __EMSCRIPTEN__
+    emscripten_set_main_loop(main_loop_iteration, 0, 1);
+    #else
+    while (!should_quit) {  // Changed this condition
+        main_loop_iteration();
     }
+    #endif
+
     return 0;
 }
 
