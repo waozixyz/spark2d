@@ -17,6 +17,7 @@ WEB_OBJ_DIR=$(OBJ_DIR)/web
 SOURCES = \
     $(SRC_DIR)/spark_core.c \
     $(SRC_DIR)/spark_graphics.c \
+    $(SRC_DIR)/spark_theme.c \
     $(SRC_DIR)/spark_ui.c \
     $(SRC_DIR)/spark_window.c \
     $(SRC_DIR)/spark_mouse.c \

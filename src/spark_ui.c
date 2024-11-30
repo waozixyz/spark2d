@@ -2,6 +2,7 @@
 #include "internal.h"
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 struct SparkButton {
     float x, y, width, height;
@@ -116,21 +117,41 @@ static bool point_in_rect(float px, float py, float x, float y, float w, float h
 }
 
 void spark_ui_button_draw(SparkButton* button) {
+    const SparkTheme* theme = spark_theme_get_current();
+    if (!theme) {
+        theme = spark_theme_get_default();
+    }
+
     float scaled_x = spark_ui_scale_x(button->x);
     float scaled_y = spark_ui_scale_y(button->y);
     float scaled_width = spark_ui_scale_x(button->width);
     float scaled_height = spark_ui_scale_y(button->height);
 
-    // Draw button background
+    // Draw button background with theme colors
+    SDL_Color base_color;
     if (button->pressed) {
-        spark_graphics_set_color(0.6f, 0.6f, 0.6f);
+        base_color = spark_theme_mix_colors(theme->primary, theme->pressed_overlay, 1.0f);
     } else if (button->hovered) {
-        spark_graphics_set_color(0.8f, 0.8f, 0.8f);
+        base_color = spark_theme_mix_colors(theme->primary, theme->hover_overlay, 1.0f);
     } else {
-        spark_graphics_set_color(0.7f, 0.7f, 0.7f);
+        base_color = theme->primary;
     }
-    spark_graphics_rectangle("fill", scaled_x, scaled_y, scaled_width, scaled_height);
 
+    spark_graphics_set_color_with_alpha(
+        base_color.r / 255.0f,
+        base_color.g / 255.0f,
+        base_color.b / 255.0f,
+        base_color.a / 255.0f
+    );
+
+    // Draw button with themed border radius
+    spark_graphics_rounded_rectangle("fill", scaled_x, scaled_y, 
+                                   scaled_width, scaled_height,
+                                   theme->border_radius);
+
+    // Set text color from theme
+    SDL_Color text_color = theme->on_primary;
+    
     // Draw content based on button type
     switch (button->type) {
         case SPARK_BUTTON_TEXT:
@@ -139,13 +160,43 @@ void spark_ui_button_draw(SparkButton* button) {
                 spark_graphics_text_get_scaled_size(button->text_texture, &text_width, &text_height);
                 float text_x = scaled_x + (scaled_width - text_width) / 2;
                 float text_y = scaled_y + (scaled_height - text_height) / 2;
+                
+                spark_graphics_text_set_color(button->text_texture, 
+                    text_color.r / 255.0f,
+                    text_color.g / 255.0f,
+                    text_color.b / 255.0f,
+                    text_color.a / 255.0f);
+                    
                 spark_graphics_text_draw(button->text_texture, text_x, text_y);
             }
             break;
 
         case SPARK_BUTTON_ICON:
             if (button->icon) {
-                spark_graphics_icon_draw(button->icon, scaled_x, scaled_y, scaled_width, scaled_height);
+                float icon_aspect = spark_graphics_icon_get_aspect_ratio(button->icon);
+                float max_size = fmin(scaled_width, scaled_height) * theme->icon_size / 24.0f;
+                float icon_width, icon_height;
+                
+                if (icon_aspect > 1.0f) {
+                    icon_width = max_size;
+                    icon_height = max_size / icon_aspect;
+                } else {
+                    icon_height = max_size;
+                    icon_width = max_size * icon_aspect;
+                }
+                
+                // Center the icon in the button
+                float icon_x = scaled_x + (scaled_width - icon_width) / 2;
+                float icon_y = scaled_y + (scaled_height - icon_height) / 2;
+                
+                // Set icon color from theme
+                spark_graphics_icon_set_color(button->icon,
+                    text_color.r / 255.0f,
+                    text_color.g / 255.0f,
+                    text_color.b / 255.0f,
+                    text_color.a / 255.0f);
+                    
+                spark_graphics_icon_draw(button->icon, icon_x, icon_y, icon_width, icon_height);
             }
             break;
 
@@ -154,18 +205,40 @@ void spark_ui_button_draw(SparkButton* button) {
                 float text_width, text_height;
                 spark_graphics_text_get_scaled_size(button->text_texture, &text_width, &text_height);
                 
-                float icon_width = scaled_height * 0.8f;
-                float icon_x = scaled_x + scaled_height * 0.1f;
-                spark_graphics_icon_draw(button->icon, icon_x, scaled_y, icon_width, scaled_height);
+                // Calculate icon size maintaining aspect ratio
+                float icon_aspect = spark_graphics_icon_get_aspect_ratio(button->icon);
+                float max_icon_height = scaled_height * theme->icon_size / 24.0f;
+                float icon_width = max_icon_height * icon_aspect;
+                float icon_height = max_icon_height;
                 
-                float text_x = icon_x + icon_width + scaled_height * 0.1f;
+                // Position icon on the left with themed padding
+                float padding = theme->spacing_unit * spark_ui_scale_x(1.0f);
+                float icon_x = scaled_x + padding;
+                float icon_y = scaled_y + (scaled_height - icon_height) / 2;
+                
+                // Set text and icon colors from theme
+                spark_graphics_text_set_color(button->text_texture,
+                    text_color.r / 255.0f,
+                    text_color.g / 255.0f,
+                    text_color.b / 255.0f,
+                    text_color.a / 255.0f);
+                    
+                spark_graphics_icon_set_color(button->icon,
+                    text_color.r / 255.0f,
+                    text_color.g / 255.0f,
+                    text_color.b / 255.0f,
+                    text_color.a / 255.0f);
+                
+                spark_graphics_icon_draw(button->icon, icon_x, icon_y, icon_width, icon_height);
+                
+                // Position text after the icon with themed padding
+                float text_x = icon_x + icon_width + padding;
                 float text_y = scaled_y + (scaled_height - text_height) / 2;
                 spark_graphics_text_draw(button->text_texture, text_x, text_y);
             }
             break;
     }
 }
-
 void spark_ui_button_update(SparkButton* button) {
     float mx, my;
     spark_ui_get_mouse_position(&mx, &my);

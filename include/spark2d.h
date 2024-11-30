@@ -9,6 +9,7 @@
 #include "spark_event.h"
 #include "spark_timer.h"
 #include "spark_ui.h"
+#include "spark_theme.h"
 
 // Core functions
 bool spark_init(const char* title, int width, int height); 

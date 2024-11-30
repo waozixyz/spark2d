@@ -185,6 +185,38 @@ void spark_graphics_icon_free(SparkIcon* icon) {
         free(icon);
     }
 }
+float spark_graphics_icon_get_aspect_ratio(SparkIcon* icon) {
+    if (!icon || icon->height <= 0) {
+        return 1.0f;
+    }
+    return (float)icon->width / (float)icon->height;
+}
+
+void spark_graphics_rounded_rectangle(const char* mode, float x, float y, float w, float h, float radius) {
+    // For now, just use regular rectangle until we implement proper rounded corners
+    spark_graphics_rectangle(mode, x, y, w, h);
+}
+
+void spark_graphics_icon_set_color(SparkIcon* icon, float r, float g, float b, float a) {
+    if (icon && icon->texture) {
+        SDL_SetTextureColorMod(icon->texture, 
+            (uint8_t)(r * 255), 
+            (uint8_t)(g * 255), 
+            (uint8_t)(b * 255));
+        SDL_SetTextureAlphaMod(icon->texture, (uint8_t)(a * 255));
+    }
+}
+
+void spark_graphics_icon_get_size(SparkIcon* icon, float* width, float* height) {
+    if (!icon) {
+        *width = 0;
+        *height = 0;
+        return;
+    }
+    
+    *width = icon->width;
+    *height = icon->height;
+}
 
 void spark_graphics_print(const char* text, float x, float y) {
     ensure_default_font();

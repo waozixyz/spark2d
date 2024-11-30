@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include "spark_font.h"
 #include "spark_graphics.h"
+#include "spark_theme.h"
 
 // Forward declarations
 typedef struct SparkButton SparkButton;

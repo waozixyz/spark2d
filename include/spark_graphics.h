@@ -35,6 +35,11 @@ typedef struct SparkIcon {
 SparkIcon* spark_graphics_load_icon(const char* svg_path);
 void spark_graphics_icon_draw(SparkIcon* icon, float x, float y, float w, float h);
 void spark_graphics_icon_free(SparkIcon* icon);
+float spark_graphics_icon_get_aspect_ratio(SparkIcon* icon);
+void spark_graphics_icon_get_size(SparkIcon* icon, float* width, float* height);
+
+void spark_graphics_rounded_rectangle(const char* mode, float x, float y, float w, float h, float radius);
+void spark_graphics_icon_set_color(SparkIcon* icon, float r, float g, float b, float a);
 
 // Text functions
 SparkText* spark_graphics_new_text(SparkFont* font, const char* text);
