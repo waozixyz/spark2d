@@ -21,7 +21,6 @@ void spark_graphics_init(void) {
             printf("Failed to create NanoSVG rasterizer\n");
             return;
         }
-        printf("Successfully created rasterizer\n");
     }
 }
 
@@ -302,14 +301,32 @@ void spark_graphics_rounded_rectangle(const char* mode, float x, float y, float 
     // For now, just use regular rectangle until we implement proper rounded corners
     spark_graphics_rectangle(mode, x, y, w, h);
 }
-
 void spark_graphics_icon_set_color(SparkIcon* icon, float r, float g, float b, float a) {
-    if (icon && icon->texture) {
-        SDL_SetTextureColorMod(icon->texture, 
-            (uint8_t)(r * 255), 
-            (uint8_t)(g * 255), 
-            (uint8_t)(b * 255));
-        SDL_SetTextureAlphaMod(icon->texture, (uint8_t)(a * 255));
+    if (!icon || !icon->svg_data) {
+        fprintf(stderr, "Error: Invalid icon or uninitialized SVG data in spark_graphics_icon_set_color\n");
+        return;
+    }
+
+    if (r < 0.0f || r > 1.0f || g < 0.0f || g > 1.0f || b < 0.0f || b > 1.0f || a < 0.0f || a > 1.0f) {
+        fprintf(stderr, "Error: Invalid color values. Expected range: 0.0 to 1.0\n");
+        return;
+    }
+
+    uint8_t red = (uint8_t)(r * 255);
+    uint8_t green = (uint8_t)(g * 255);
+    uint8_t blue = (uint8_t)(b * 255);
+    uint8_t alpha = (uint8_t)(a * 255);
+    uint32_t color = (alpha << 24) | (red << 16) | (green << 8) | blue;
+
+    // Iterate over all shapes in the SVG and update their fill color
+    for (NSVGshape* shape = icon->svg_data->shapes; shape != NULL; shape = shape->next) {
+        if (shape->fill.type == NSVG_PAINT_COLOR) {
+            shape->fill.color = color;
+        }
+        // Optionally update stroke color too, if needed
+        if (shape->stroke.type == NSVG_PAINT_COLOR) {
+            shape->stroke.color = color;
+        }
     }
 }
 

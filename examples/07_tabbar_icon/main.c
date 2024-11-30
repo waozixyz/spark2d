@@ -11,6 +11,15 @@ static void on_tab_changed(int tab_index) {
 }
 
 void load(void) {
+    // Initialize theming system
+    spark_theme_init();
+    
+    // Simple preset usage
+    SparkTheme* theme = spark_theme_create_from_preset(SPARK_THEME_PRESET_DARK);
+    spark_theme_set_current(theme);
+    spark_theme_free(theme);
+
+
     // Set responsive mode with aspect ratio maintenance
     spark_window_set_mode(SPARK_WINDOW_MODE_RESPONSIVE);
     spark_window_set_scale_mode(SPARK_SCALE_NONE);
