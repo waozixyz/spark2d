@@ -17,7 +17,6 @@ WEB_OBJ_DIR=$(OBJ_DIR)/web
 # Core sources
 SOURCES = \
     $(SRC_DIR)/spark_core.c \
-    $(SRC_DIR)/spark_graphics.c \
     $(SRC_DIR)/spark_theme.c \
     $(SRC_DIR)/spark_window.c \
     $(SRC_DIR)/spark_mouse.c \
@@ -27,6 +26,14 @@ SOURCES = \
     $(SRC_DIR)/spark_event.c \
     $(SRC_DIR)/spark_audio.c
 
+GRAPHICS_SOURCES = \
+    $(SRC_DIR)/graphics/core.c \
+    $(SRC_DIR)/graphics/primitives.c \
+    $(SRC_DIR)/graphics/text.c \
+    $(SRC_DIR)/graphics/icon.c \
+    $(SRC_DIR)/graphics/shadows.c \
+    $(SRC_DIR)/graphics/color.c
+
 # UI sources
 UI_SOURCES = \
     $(SRC_DIR)/ui/core/ui_system.c \
@@ -34,7 +41,7 @@ UI_SOURCES = \
     $(SRC_DIR)/ui/components/tabbar.c
 
 # Combine all sources
-ALL_SOURCES = $(SOURCES) $(UI_SOURCES)
+ALL_SOURCES = $(SOURCES) $(GRAPHICS_SOURCES) $(UI_SOURCES)
 
 # Generate object file paths preserving directory structure
 OBJ=$(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(ALL_SOURCES))

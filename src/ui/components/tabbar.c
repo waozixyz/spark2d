@@ -254,10 +254,35 @@ void spark_ui_tabbar_draw(SparkTabBar* tabbar) {
     }
 
     // Draw tabs
-    for (int i = 0; i < tabbar->tab_count; i++) {
-        spark_ui_button_draw(tabbar->tabs[i].button);
+// Draw tabs
+for (int i = 0; i < tabbar->tab_count; i++) {
+    SparkTab* tab = &tabbar->tabs[i];
+    SparkButton* button = tab->button;
+
+    // Draw button background with state overlays
+    SDL_Color render_color = theme->surface;
+    if (button->hovered) {
+        render_color = spark_theme_mix_colors(theme->surface, theme->hover_overlay, 0.08f);
     }
 
+    spark_graphics_set_color_with_alpha(
+        render_color.r / 255.0f,
+        render_color.g / 255.0f,
+        render_color.b / 255.0f,
+        1.0f
+    );
+
+    spark_graphics_rounded_rectangle("fill",
+        scaled_x + spark_ui_scale_x(button->x - start_x),
+        scaled_y,
+        spark_ui_scale_x(button->width),
+        scaled_height,
+        theme->border_radius
+    );
+
+    // Draw button content
+    spark_ui_button_draw(button);
+}
     // Draw indicator
     if (tabbar->active_tab >= 0) {
         float indicator_width = spark_ui_scale_x(tab_width);

@@ -37,10 +37,6 @@ void draw(void) {
             return;
         }
         
-        // Print icon state
-        printf("Drawing icon: texture=%p, size=%dx%d, scale=%.2f\n", 
-               (void*)icon->texture, icon->width, icon->height, icon->last_scale);
-        
         // Set icon color to white for visibility
         spark_graphics_icon_set_color(icon, 1.0f, 1.0f, 1.0f, 1.0f);
         
