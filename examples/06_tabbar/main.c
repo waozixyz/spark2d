@@ -9,25 +9,35 @@ static SparkTabBar* tabbar;
 static void on_tab_changed(int tab_index) {
     printf("Switched to tab %d\n", tab_index);
 }
-
+// Example usage - only specify what you need
 void load(void) {
-    // Set responsive mode with aspect ratio maintenance
-    spark_window_set_mode(SPARK_WINDOW_MODE_RESPONSIVE);
-    spark_window_set_scale_mode(SPARK_SCALE_NONE);
-
-    // Create UI elements in logical coordinates
-    tabbar = spark_ui_tabbar_new(SPARK_TAB_BOTTOM);
+    // Minimal builder with just required fields
+    SparkTabBarBuilder builder = {
+        .position = SPARK_TAB_BOTTOM,  // Only required field
+    };
+    
+    tabbar = spark_ui_tabbar_build(&builder);
     if (!tabbar) {
         fprintf(stderr, "Failed to create tab bar\n");
         return;
     }
 
-    // Changed from spark_ui_tabbar_add_tab to spark_ui_tabbar_add_text_tab
-    spark_ui_tabbar_add_text_tab(tabbar, "Home");
-    spark_ui_tabbar_add_text_tab(tabbar, "Profile");
-    spark_ui_tabbar_add_text_tab(tabbar, "Settings");
-    spark_ui_tabbar_add_text_tab(tabbar, "Help");
+    // Simple tab configs - only specify text
+    SparkTabConfig tabs[] = {
+        { .text = "Home" },
+        { .text = "Profile" },
+        { .text = "Settings" },
+        { .text = "Help" }
+    };
 
+    SparkTabGroup main_group = {
+        .tabs = tabs,
+        .tab_count = 4
+    };
+    
+    spark_ui_tabbar_add_group(tabbar, &main_group);
+
+    // Optional: only set callback if needed
     spark_ui_tabbar_set_callback(tabbar, on_tab_changed);
 }
 

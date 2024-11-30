@@ -5,6 +5,10 @@
 #include "spark_font.h"
 #include "spark_graphics.h"
 
+
+
+#define SPARK_MAX_TABS 32  
+
 // Forward declarations
 struct SparkButton;
 struct SparkTabBar;
@@ -40,13 +44,56 @@ typedef struct SparkButton {
 } SparkButton;
 
 
-// Tab related structures
+
 typedef struct SparkTab {
     SparkButton* button;
     bool active;
     struct SparkTabBar* parent_tabbar;
+    bool enabled;
+    void* user_data;
 } SparkTab;
 
+typedef enum SparkTabBarError {
+    SPARK_TABBAR_SUCCESS,
+    SPARK_TABBAR_ERROR_MEMORY,
+    SPARK_TABBAR_ERROR_INVALID_INDEX,
+    SPARK_TABBAR_ERROR_MAX_TABS
+} SparkTabBarError;
+
+// Add animation config
+typedef struct SparkTabAnimationConfig {
+    float transition_speed;
+    bool smooth_scrolling;
+    bool fade_effect;
+    float indicator_thickness;
+} SparkTabAnimationConfig;
+
+// Add tab config
+typedef struct SparkTabConfig {
+    const char* text;
+    SparkIcon* icon;
+    bool enabled;
+    void* user_data;
+} SparkTabConfig;
+
+// Add tab group
+typedef struct SparkTabGroup {
+    const char* name;
+    SparkTabConfig* tabs;
+    int tab_count;
+} SparkTabGroup;
+
+// Add builder
+typedef struct SparkTabBarBuilder {
+    SparkTabPosition position;
+    float height;
+    float max_width;
+    SparkTabCallback callback;
+    bool centered;
+    bool auto_resize;
+} SparkTabBarBuilder;
+
+// Update SparkTabBar structure
 typedef struct SparkTabBar {
     float x, y, width, height;
     SparkTab* tabs;
@@ -58,6 +105,10 @@ typedef struct SparkTabBar {
     float max_width;
     float indicator_pos;
     float indicator_target;
+    // New fields
+    bool centered;
+    bool auto_resize;
+    SparkTabAnimationConfig animation;
 } SparkTabBar;
 
 #endif /* SPARK_UI_TYPES_H */

@@ -30,9 +30,16 @@ static void add_tab_base(SparkTabBar* tabbar, SparkButton* button) {
         tabbar->capacity = new_capacity;
     }
 
+    // Update button y position based on tabbar position
+    float viewport_height = spark.window_state.viewport.h / spark.window_state.scale_y;
+    button->y = (tabbar->position == SPARK_TAB_BOTTOM) ? 
+                (viewport_height - tabbar->height) : 0;
+
     tabbar->tabs[tabbar->tab_count].button = button;
     tabbar->tabs[tabbar->tab_count].active = false;
     tabbar->tabs[tabbar->tab_count].parent_tabbar = tabbar;
+    tabbar->tabs[tabbar->tab_count].enabled = true;
+    tabbar->tabs[tabbar->tab_count].user_data = NULL;
     
     spark_ui_button_set_callback(button, tab_button_callback, &tabbar->tabs[tabbar->tab_count]);
     
@@ -42,6 +49,8 @@ static void add_tab_base(SparkTabBar* tabbar, SparkButton* button) {
     for (int i = 0; i < tabbar->tab_count; i++) {
         tabbar->tabs[i].button->width = new_tab_width;
         tabbar->tabs[i].button->x = tabbar->x + (new_tab_width * i);
+        // Update all buttons' y positions
+        tabbar->tabs[i].button->y = button->y;
     }
 
     if (tabbar->active_tab == -1) {
@@ -50,11 +59,12 @@ static void add_tab_base(SparkTabBar* tabbar, SparkButton* button) {
     }
 }
 
+// In tab button creation functions, use tabbar's y position
 void spark_ui_tabbar_add_text_tab(SparkTabBar* tabbar, const char* text) {
     float tab_width = tabbar->width / (tabbar->tab_count + 1);
     SparkButton* button = spark_ui_button_new_text(
         tabbar->x + (tab_width * tabbar->tab_count),
-        tabbar->y,
+        tabbar->y,  // Use tabbar's y position
         tab_width,
         tabbar->height,
         text
@@ -97,40 +107,108 @@ void spark_ui_tabbar_set_callback(SparkTabBar* tabbar, SparkTabCallback callback
     tabbar->callback = callback;
 }
 
+// Update the tabbar_update function to ensure buttons stay aligned
 void spark_ui_tabbar_update(SparkTabBar* tabbar) {
-    // Always use viewport width for the full width
     float scale_x = spark.window_state.scale_x;
     float scale_y = spark.window_state.scale_y;
     float viewport_width = spark.window_state.viewport.w / scale_x;
     float viewport_height = spark.window_state.viewport.h / scale_y;
 
-    // Set the tabbar width to match viewport
+    // Update tabbar position
     tabbar->width = viewport_width;
-    
-    // Update position based on viewport
-    tabbar->x = 0;  // Always start at left edge
     tabbar->y = (tabbar->position == SPARK_TAB_BOTTOM) ? 
                 (viewport_height - tabbar->height) : 0;
 
-    // Calculate actual width considering max_width
     float actual_width = tabbar->max_width > 0 ? 
                         fmin(viewport_width, tabbar->max_width) : 
                         viewport_width;
     
-    // Center if using max_width
     float start_x = tabbar->max_width > 0 ? 
                     (viewport_width - actual_width) / 2 : 0;
 
-    // Calculate tab widths
     float tab_width = actual_width / tabbar->tab_count;
 
-    // Update individual tab positions
+    // Update button positions
     for (int i = 0; i < tabbar->tab_count; i++) {
         tabbar->tabs[i].button->x = start_x + (tab_width * i);
         tabbar->tabs[i].button->width = tab_width;
+        tabbar->tabs[i].button->y = tabbar->y;  // Ensure buttons align with tabbar
         spark_ui_button_update(tabbar->tabs[i].button);
     }
 }
+
+
+SparkTabBar* spark_ui_tabbar_build(const SparkTabBarBuilder* builder) {
+    SparkTabBar* tabbar = calloc(1, sizeof(SparkTabBar));
+    if (!tabbar) return NULL;
+    
+    // Required fields
+    tabbar->position = builder->position;
+    
+    // Optional fields with defaults
+    tabbar->height = builder->height > 0 ? builder->height : 60;
+    tabbar->max_width = builder->max_width;  // 0 means full width
+    tabbar->callback = builder->callback;     // NULL is valid
+    tabbar->centered = builder->centered;     // false by default via calloc
+    tabbar->auto_resize = builder->auto_resize; // false by default
+    
+    // Default initialization
+    tabbar->capacity = 4;
+    tabbar->tabs = calloc(tabbar->capacity, sizeof(SparkTab));
+    if (!tabbar->tabs) {
+        free(tabbar);
+        return NULL;
+    }
+    
+    tabbar->active_tab = -1;
+    
+    // Default animation config
+    tabbar->animation.transition_speed = 0.2f;
+    tabbar->animation.smooth_scrolling = true;
+    tabbar->animation.fade_effect = true;
+    tabbar->animation.indicator_thickness = 2.0f;
+    
+    return tabbar;
+}
+void spark_ui_tabbar_add_tab(SparkTabBar* tabbar, const SparkTabConfig* config) {
+    if (!tabbar || !config) return;  // Remove text requirement check
+    
+    SparkTabBarError error = spark_ui_tabbar_validate(tabbar);
+    if (error != SPARK_TABBAR_SUCCESS) return;
+
+    // Handle all tab type combinations
+    if (config->text && config->icon) {
+        spark_ui_tabbar_add_text_and_icon_tab(tabbar, config->text, config->icon);
+    } else if (config->text) {
+        spark_ui_tabbar_add_text_tab(tabbar, config->text);
+    } else if (config->icon) {  // Handle icon-only case
+        spark_ui_tabbar_add_icon_tab(tabbar, config->icon);
+    }
+
+    if (tabbar->tab_count > 0) {
+        SparkTab* tab = &tabbar->tabs[tabbar->tab_count - 1];
+        tab->enabled = config->enabled ? config->enabled : true;
+        tab->user_data = config->user_data;
+    }
+}
+
+void spark_ui_tabbar_add_group(SparkTabBar* tabbar, const SparkTabGroup* group) {
+    for (int i = 0; i < group->tab_count; i++) {
+        spark_ui_tabbar_add_tab(tabbar, &group->tabs[i]);
+    }
+}
+
+void spark_ui_tabbar_set_animation(SparkTabBar* tabbar, const SparkTabAnimationConfig* config) {
+    if (!tabbar || !config) return;
+    tabbar->animation = *config;
+}
+
+SparkTabBarError spark_ui_tabbar_validate(const SparkTabBar* tabbar) {
+    if (!tabbar) return SPARK_TABBAR_ERROR_MEMORY;
+    if (tabbar->tab_count >= SPARK_MAX_TABS) return SPARK_TABBAR_ERROR_MAX_TABS;
+    return SPARK_TABBAR_SUCCESS;
+}
+
 
 void spark_ui_tabbar_draw(SparkTabBar* tabbar) {
     const SparkTheme* theme = spark_theme_get_current();
@@ -152,7 +230,7 @@ void spark_ui_tabbar_draw(SparkTabBar* tabbar) {
     uint8_t elevation = theme->elevation_levels[1];
     spark_graphics_apply_elevation(scaled_x, scaled_y, scaled_width, scaled_height, elevation);
 
-    // Draw background with slight transparency
+    // Draw background
     spark_graphics_set_color_with_alpha(
         theme->surface.r / 255.0f,
         theme->surface.g / 255.0f,
@@ -160,19 +238,17 @@ void spark_ui_tabbar_draw(SparkTabBar* tabbar) {
         0.95f
     );
     
-    spark_graphics_rectangle("fill", scaled_x, scaled_y, 
-                           scaled_width, scaled_height);
+    spark_graphics_rectangle("fill", scaled_x, scaled_y, scaled_width, scaled_height);
 
     float tab_width = actual_width / tabbar->tab_count;
     
-    // Update indicator animation with smoother easing
+    // Update indicator animation
     if (tabbar->active_tab >= 0) {
         float target_pos = tab_width * tabbar->active_tab;
         tabbar->indicator_target = target_pos;
         
-        // Smooth easing function
         float dx = tabbar->indicator_target - tabbar->indicator_pos;
-        float spring = 0.2f;
+        float spring = tabbar->animation.transition_speed;
         float velocity = dx * spring;
         tabbar->indicator_pos += velocity;
     }
@@ -182,16 +258,15 @@ void spark_ui_tabbar_draw(SparkTabBar* tabbar) {
         spark_ui_button_draw(tabbar->tabs[i].button);
     }
 
-    // Draw animated indicator
+    // Draw indicator
     if (tabbar->active_tab >= 0) {
         float indicator_width = spark_ui_scale_x(tab_width);
-        float indicator_height = spark_ui_scale_y(2.0f);
+        float indicator_height = spark_ui_scale_y(tabbar->animation.indicator_thickness);
         
         float indicator_y = (tabbar->position == SPARK_TAB_BOTTOM) ?
                           scaled_y + scaled_height - indicator_height :
                           scaled_y;
 
-        // Draw indicator with primary color
         spark_graphics_set_color_with_alpha(
             theme->primary.r / 255.0f,
             theme->primary.g / 255.0f,

@@ -3,11 +3,21 @@
 
 #include "../common.h"
 
-typedef struct SparkTabBar SparkTabBar;
-typedef struct SparkTab SparkTab;
+// Builder pattern
+SparkTabBar* spark_ui_tabbar_build(const SparkTabBarBuilder* builder);
+
+
+// Tab configuration
+void spark_ui_tabbar_add_tab(SparkTabBar* tabbar, const SparkTabConfig* config);
+void spark_ui_tabbar_add_group(SparkTabBar* tabbar, const SparkTabGroup* group);
+
+// Animation configuration
+void spark_ui_tabbar_set_animation(SparkTabBar* tabbar, const SparkTabAnimationConfig* config);
+
+// Error handling
+SparkTabBarError spark_ui_tabbar_validate(const SparkTabBar* tabbar);
 
 // Creation and destruction
-SparkTabBar* spark_ui_tabbar_new(SparkTabPosition position);
 void spark_ui_tabbar_free(SparkTabBar* tabbar);
 
 // Tab management
