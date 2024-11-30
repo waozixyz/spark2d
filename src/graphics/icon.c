@@ -1,13 +1,10 @@
 #include "spark_graphics/icon.h"
 #include "../internal.h"
+#include "internal.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
-#include "nanosvg.h"
-#include "nanosvgrast.h"
-
-extern NSVGrasterizer* global_rasterizer;
 
 SparkIcon* spark_graphics_load_icon(const char* svg_path) {    
     if (!global_rasterizer) {

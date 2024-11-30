@@ -1,12 +1,12 @@
 #include "spark_graphics/core.h"
 #include "spark_graphics/types.h"
 #include "../internal.h"
-#include "nanosvg.h"
-#include "nanosvgrast.h"
 #include <stdlib.h>
+#include "internal.h"
+#include <stdio.h>
 
-static NSVGrasterizer* global_rasterizer = NULL;
-static SparkFont* default_font = NULL;
+NSVGrasterizer* global_rasterizer = NULL;
+SparkFont* default_font = NULL;
 
 void spark_graphics_init(void) {
     printf("Initializing graphics...\n");
@@ -19,7 +19,7 @@ void spark_graphics_init(void) {
     }
 }
 
-static void ensure_default_font(void) {
+void ensure_default_font(void) {
     if (!default_font) {
         default_font = spark_font_new_default(spark.renderer);
     }

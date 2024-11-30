@@ -27,6 +27,7 @@ SOURCES = \
     $(SRC_DIR)/spark_audio.c
 
 GRAPHICS_SOURCES = \
+    $(SRC_DIR)/graphics/nanosvg_impl.c \
     $(SRC_DIR)/graphics/core.c \
     $(SRC_DIR)/graphics/primitives.c \
     $(SRC_DIR)/graphics/text.c \

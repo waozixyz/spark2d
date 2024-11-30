@@ -1,9 +1,8 @@
 #include "spark_graphics/text.h"
 #include "../internal.h"
+#include "internal.h"
 #include <stdlib.h>
 #include <string.h>
-
-extern SparkFont* default_font;
 
 SparkText* spark_graphics_new_text(SparkFont* font, const char* text) {
     SparkText* txt = malloc(sizeof(SparkText));
