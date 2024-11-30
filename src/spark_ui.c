@@ -1,13 +1,14 @@
 #include "spark_ui.h"
 #include "internal.h"
-#include "spark_graphics.h"
 #include <stdlib.h>
 #include <string.h>
 
 struct SparkButton {
     float x, y, width, height;
+    SparkButtonType type;
     char* text;
     SparkText* text_texture;
+    SparkIcon* icon;
     SparkButtonCallback callback;
     void* user_data;
     bool hovered;
@@ -30,27 +31,63 @@ struct SparkTabBar {
     SparkTabCallback callback;
 };
 
-SparkButton* spark_ui_button_new(float x, float y, float width, float height, const char* text) {
+static SparkButton* create_button_base(float x, float y, float width, float height) {
     SparkButton* button = malloc(sizeof(SparkButton));
-    if (!button) {
-        return NULL;
-    }
+    if (!button) return NULL;
 
     button->x = x;
     button->y = y;
     button->width = width;
     button->height = height;
-    button->text = strdup(text);
+    button->text = NULL;
+    button->text_texture = NULL;
+    button->icon = NULL;
     button->callback = NULL;
     button->user_data = NULL;
     button->hovered = false;
     button->pressed = false;
-    
-    // Get default font from graphics system
     button->font = spark_font_get_default(spark_graphics_get_renderer());
 
-    // Create text texture with default font
+    return button;
+}
+
+SparkButton* spark_ui_button_new_text(float x, float y, float width, float height, const char* text) {
+    SparkButton* button = create_button_base(x, y, width, height);
+    if (!button) return NULL;
+
+    button->type = SPARK_BUTTON_TEXT;
+    button->text = strdup(text);
     button->text_texture = spark_graphics_new_text(button->font, text);
+
+    if (!button->text_texture) {
+        free(button->text);
+        free(button);
+        return NULL;
+    }
+
+    return button;
+}
+
+SparkButton* spark_ui_button_new_icon(float x, float y, float width, float height, SparkIcon* icon) {
+    SparkButton* button = create_button_base(x, y, width, height);
+    if (!button) return NULL;
+
+    button->type = SPARK_BUTTON_ICON;
+    button->icon = icon;
+
+    return button;
+}
+
+SparkButton* spark_ui_button_new_text_and_icon(float x, float y, float width, float height, 
+                                              const char* text, SparkIcon* icon) {
+    SparkButton* button = create_button_base(x, y, width, height);
+    if (!button) return NULL;
+
+    button->type = SPARK_BUTTON_TEXT_AND_ICON;
+    button->text = strdup(text);
+    button->text_texture = spark_graphics_new_text(button->font, text);
+    button->icon = icon;
+
     if (!button->text_texture) {
         free(button->text);
         free(button);
@@ -66,9 +103,8 @@ void spark_ui_button_set_callback(SparkButton* button, SparkButtonCallback callb
 }
 
 void spark_ui_button_set_font(SparkButton* button, SparkFont* font) {
-    button->font = font;  // Store font reference
+    button->font = font;
     
-    // Recreate text texture with new font
     if (button->text_texture) {
         spark_graphics_text_free(button->text_texture);
     }
@@ -77,6 +113,89 @@ void spark_ui_button_set_font(SparkButton* button, SparkFont* font) {
 
 static bool point_in_rect(float px, float py, float x, float y, float w, float h) {
     return px >= x && px <= x + w && py >= y && py <= y + h;
+}
+
+void spark_ui_button_draw(SparkButton* button) {
+    float scaled_x = spark_ui_scale_x(button->x);
+    float scaled_y = spark_ui_scale_y(button->y);
+    float scaled_width = spark_ui_scale_x(button->width);
+    float scaled_height = spark_ui_scale_y(button->height);
+
+    // Draw button background
+    if (button->pressed) {
+        spark_graphics_set_color(0.6f, 0.6f, 0.6f);
+    } else if (button->hovered) {
+        spark_graphics_set_color(0.8f, 0.8f, 0.8f);
+    } else {
+        spark_graphics_set_color(0.7f, 0.7f, 0.7f);
+    }
+    spark_graphics_rectangle("fill", scaled_x, scaled_y, scaled_width, scaled_height);
+
+    // Draw content based on button type
+    switch (button->type) {
+        case SPARK_BUTTON_TEXT:
+            if (button->text_texture) {
+                float text_width, text_height;
+                spark_graphics_text_get_scaled_size(button->text_texture, &text_width, &text_height);
+                float text_x = scaled_x + (scaled_width - text_width) / 2;
+                float text_y = scaled_y + (scaled_height - text_height) / 2;
+                spark_graphics_text_draw(button->text_texture, text_x, text_y);
+            }
+            break;
+
+        case SPARK_BUTTON_ICON:
+            if (button->icon) {
+                spark_graphics_icon_draw(button->icon, scaled_x, scaled_y, scaled_width, scaled_height);
+            }
+            break;
+
+        case SPARK_BUTTON_TEXT_AND_ICON:
+            if (button->icon && button->text_texture) {
+                float text_width, text_height;
+                spark_graphics_text_get_scaled_size(button->text_texture, &text_width, &text_height);
+                
+                float icon_width = scaled_height * 0.8f;
+                float icon_x = scaled_x + scaled_height * 0.1f;
+                spark_graphics_icon_draw(button->icon, icon_x, scaled_y, icon_width, scaled_height);
+                
+                float text_x = icon_x + icon_width + scaled_height * 0.1f;
+                float text_y = scaled_y + (scaled_height - text_height) / 2;
+                spark_graphics_text_draw(button->text_texture, text_x, text_y);
+            }
+            break;
+    }
+}
+
+void spark_ui_button_update(SparkButton* button) {
+    float mx, my;
+    spark_ui_get_mouse_position(&mx, &my);
+    
+    button->hovered = point_in_rect(mx, my, button->x, button->y,
+                                  button->width, button->height);
+    
+    uint32_t mouse_state = SDL_GetMouseState(NULL, NULL);
+    bool mouse_down = (mouse_state & SDL_BUTTON_LMASK) != 0;
+    
+    if (button->hovered && mouse_down && !button->pressed) {
+        button->pressed = true;
+    } else if (!mouse_down && button->pressed) {
+        if (button->hovered && button->callback) {
+            button->callback(button->user_data);
+        }
+        button->pressed = false;
+    }
+}
+
+void spark_ui_button_free(SparkButton* button) {
+    if (button) {
+        if (button->text_texture) {
+            spark_graphics_text_free(button->text_texture);
+        }
+        if (button->text) {
+            free(button->text);
+        }
+        free(button);
+    }
 }
 
 SparkTabBar* spark_ui_tabbar_new(float x, float y, float width, float height) {
@@ -88,7 +207,7 @@ SparkTabBar* spark_ui_tabbar_new(float x, float y, float width, float height) {
     tabbar->width = width;
     tabbar->height = height;
     tabbar->tab_count = 0;
-    tabbar->capacity = 8;  // Initial capacity
+    tabbar->capacity = 8;
     tabbar->active_tab = -1;
     tabbar->callback = NULL;
 
@@ -101,12 +220,10 @@ SparkTabBar* spark_ui_tabbar_new(float x, float y, float width, float height) {
     return tabbar;
 }
 
-
 static void tab_button_callback(void* user_data) {
     SparkTab* tab = (SparkTab*)user_data;
-    SparkTabBar* tabbar = tab->parent_tabbar;  // We'll need to add this field to SparkTab
+    SparkTabBar* tabbar = tab->parent_tabbar;
     
-    // Find which tab was clicked
     for (int i = 0; i < tabbar->tab_count; i++) {
         if (&tabbar->tabs[i] == tab && tabbar->active_tab != i) {
             tabbar->active_tab = i;
@@ -118,7 +235,7 @@ static void tab_button_callback(void* user_data) {
     }
 }
 
-void spark_ui_tabbar_add_tab(SparkTabBar* tabbar, const char* text) {
+static void add_tab_base(SparkTabBar* tabbar, SparkButton* button) {
     if (tabbar->tab_count >= tabbar->capacity) {
         int new_capacity = tabbar->capacity * 2;
         SparkTab* new_tabs = realloc(tabbar->tabs, sizeof(SparkTab) * new_capacity);
@@ -127,8 +244,29 @@ void spark_ui_tabbar_add_tab(SparkTabBar* tabbar, const char* text) {
         tabbar->capacity = new_capacity;
     }
 
+    tabbar->tabs[tabbar->tab_count].button = button;
+    tabbar->tabs[tabbar->tab_count].active = false;
+    tabbar->tabs[tabbar->tab_count].parent_tabbar = tabbar;
+    
+    spark_ui_button_set_callback(button, tab_button_callback, &tabbar->tabs[tabbar->tab_count]);
+    
+    tabbar->tab_count++;
+
+    float new_tab_width = tabbar->width / tabbar->tab_count;
+    for (int i = 0; i < tabbar->tab_count; i++) {
+        tabbar->tabs[i].button->width = new_tab_width;
+        tabbar->tabs[i].button->x = tabbar->x + (new_tab_width * i);
+    }
+
+    if (tabbar->active_tab == -1) {
+        tabbar->active_tab = 0;
+        tabbar->tabs[0].active = true;
+    }
+}
+
+void spark_ui_tabbar_add_text_tab(SparkTabBar* tabbar, const char* text) {
     float tab_width = tabbar->width / (tabbar->tab_count + 1);
-    SparkButton* button = spark_ui_button_new(
+    SparkButton* button = spark_ui_button_new_text(
         tabbar->x + (tab_width * tabbar->tab_count),
         tabbar->y,
         tab_width,
@@ -137,28 +275,36 @@ void spark_ui_tabbar_add_tab(SparkTabBar* tabbar, const char* text) {
     );
 
     if (!button) return;
+    add_tab_base(tabbar, button);
+}
 
-    tabbar->tabs[tabbar->tab_count].button = button;
-    tabbar->tabs[tabbar->tab_count].active = false;
-    tabbar->tabs[tabbar->tab_count].parent_tabbar = tabbar;  // Set parent reference
-    
-    // Pass the tab itself as user_data
-    spark_ui_button_set_callback(button, tab_button_callback, &tabbar->tabs[tabbar->tab_count]);
-    
-    tabbar->tab_count++;
+void spark_ui_tabbar_add_icon_tab(SparkTabBar* tabbar, SparkIcon* icon) {
+    float tab_width = tabbar->width / (tabbar->tab_count + 1);
+    SparkButton* button = spark_ui_button_new_icon(
+        tabbar->x + (tab_width * tabbar->tab_count),
+        tabbar->y,
+        tab_width,
+        tabbar->height,
+        icon
+    );
 
-    // Redistribute tab widths
-    float new_tab_width = tabbar->width / tabbar->tab_count;
-    for (int i = 0; i < tabbar->tab_count; i++) {
-        tabbar->tabs[i].button->width = new_tab_width;
-        tabbar->tabs[i].button->x = tabbar->x + (new_tab_width * i);
-    }
+    if (!button) return;
+    add_tab_base(tabbar, button);
+}
 
-    // Set first tab as active if none is active
-    if (tabbar->active_tab == -1) {
-        tabbar->active_tab = 0;
-        tabbar->tabs[0].active = true;
-    }
+void spark_ui_tabbar_add_text_and_icon_tab(SparkTabBar* tabbar, const char* text, SparkIcon* icon) {
+    float tab_width = tabbar->width / (tabbar->tab_count + 1);
+    SparkButton* button = spark_ui_button_new_text_and_icon(
+        tabbar->x + (tab_width * tabbar->tab_count),
+        tabbar->y,
+        tab_width,
+        tabbar->height,
+        text,
+        icon
+    );
+
+    if (!button) return;
+    add_tab_base(tabbar, button);
 }
 
 void spark_ui_tabbar_set_callback(SparkTabBar* tabbar, SparkTabCallback callback) {
@@ -172,13 +318,10 @@ void spark_ui_tabbar_update(SparkTabBar* tabbar) {
 }
 
 void spark_ui_tabbar_draw(SparkTabBar* tabbar) {
-    // Draw background
     spark_graphics_set_color(0.2f, 0.2f, 0.2f);
     spark_graphics_rectangle("fill", tabbar->x, tabbar->y, tabbar->width, tabbar->height);
 
-    // Draw tabs
     for (int i = 0; i < tabbar->tab_count; i++) {
-        // Modify button appearance if active
         if (i == tabbar->active_tab) {
             spark_graphics_set_color(0.8f, 0.8f, 0.8f);
         }
@@ -230,7 +373,6 @@ void spark_ui_screen_to_ui(float screen_x, float screen_y, float* ui_x, float* u
     float scale_x, scale_y;
     spark_ui_get_scale(&scale_x, &scale_y);
     
-    // Convert screen coordinates to UI space
     *ui_x = screen_x / scale_x;
     *ui_y = screen_y / scale_y;
 }
@@ -242,66 +384,3 @@ void spark_ui_get_mouse_position(float* x, float* y) {
                          my - spark.window_state.viewport.y, 
                          x, y);
 }
-void spark_ui_button_draw(SparkButton* button) {
-    float scaled_x = spark_ui_scale_x(button->x);
-    float scaled_y = spark_ui_scale_y(button->y);
-    float scaled_width = spark_ui_scale_x(button->width);
-    float scaled_height = spark_ui_scale_y(button->height);
-
-    // Draw button background with scaled coordinates
-    if (button->pressed) {
-        spark_graphics_set_color(0.6f, 0.6f, 0.6f);
-    } else if (button->hovered) {
-        spark_graphics_set_color(0.8f, 0.8f, 0.8f);
-    } else {
-        spark_graphics_set_color(0.7f, 0.7f, 0.7f);
-    }
-    spark_graphics_rectangle("fill", scaled_x, scaled_y, scaled_width, scaled_height);
-    
-    // Draw text centered in scaled coordinates
-    if (button->text_texture) {
-        float text_width, text_height;
-        spark_graphics_text_get_scaled_size(button->text_texture, &text_width, &text_height);
-        
-        float text_x = scaled_x + (scaled_width - text_width) / 2;
-        float text_y = scaled_y + (scaled_height - text_height) / 2;
-        
-        spark_graphics_text_draw(button->text_texture, text_x, text_y);
-    }
-}
-// Modify button update to use UI coordinates
-void spark_ui_button_update(SparkButton* button) {
-    float mx, my;
-    spark_ui_get_mouse_position(&mx, &my);
-    
-    button->hovered = point_in_rect(mx, my, button->x, button->y,
-                                  button->width, button->height);
-    
-    uint32_t mouse_state = SDL_GetMouseState(NULL, NULL);
-    bool mouse_down = (mouse_state & SDL_BUTTON_LMASK) != 0;
-    
-    if (button->hovered && mouse_down && !button->pressed) {
-        button->pressed = true;
-    } else if (!mouse_down && button->pressed) {
-        if (button->hovered && button->callback) {
-            button->callback(button->user_data);
-        }
-        button->pressed = false;
-    }
-}
-
-
-void spark_ui_button_free(SparkButton* button) {
-    if (button) {
-        if (button->text_texture) {
-            spark_graphics_text_free(button->text_texture);
-            button->text_texture = NULL;
-        }
-        if (button->text) {
-            free(button->text);
-            button->text = NULL;
-        }
-        free(button);
-    }
-}
-

@@ -1,7 +1,7 @@
 CC=gcc
 EMCC=emcc
 CFLAGS=-Wall -Wextra -I./include $(shell pkg-config --cflags sdl3-ttf)
-LDFLAGS=-lSDL3 -lSDL3_ttf $(shell pkg-config --libs sdl3-ttf)
+LDFLAGS=-lSDL3 -lSDL3_ttf -lm $(shell pkg-config --libs sdl3-ttf)
 
 # Emscripten flags
 EM_FLAGS=-s USE_SDL=3 -s USE_SDL_TTF=3 -s WASM=1 \

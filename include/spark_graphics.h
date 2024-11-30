@@ -25,6 +25,17 @@ typedef struct SparkText {
     SDL_Texture* texture;
 } SparkText;
 
+
+typedef struct SparkIcon {
+    SDL_Texture* texture;
+    float width;
+    float height;
+} SparkIcon;
+
+SparkIcon* spark_graphics_load_icon(const char* svg_path);
+void spark_graphics_icon_draw(SparkIcon* icon, float x, float y, float w, float h);
+void spark_graphics_icon_free(SparkIcon* icon);
+
 // Text functions
 SparkText* spark_graphics_new_text(SparkFont* font, const char* text);
 void spark_graphics_text_set_color(SparkText* text, float r, float g, float b, float a);

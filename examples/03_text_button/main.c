@@ -1,11 +1,9 @@
-// main.c
 #include "spark2d.h"
 #include "spark_ui.h"
 #include "spark_graphics.h"
 #include <stdio.h>
 
 static SparkButton* button;
-
 
 void button_callback(void* user_data) {
     // You can use user_data if needed, for now we ignore it.
@@ -14,7 +12,8 @@ void button_callback(void* user_data) {
 }
 
 void load(void) {
-    button = spark_ui_button_new(350, 250, 100, 40, "Click Me!");
+    // Changed from spark_ui_button_new to spark_ui_button_new_text
+    button = spark_ui_button_new_text(350, 250, 100, 40, "Click Me!");
     if (!button) {
         fprintf(stderr, "Failed to create button\n");
         return;
@@ -32,11 +31,9 @@ void update(float dt) {
 void draw(void) {
     spark_graphics_set_color(0.2f, 0.2f, 0.2f);
     spark_graphics_clear();
-    
     if (button) {
         spark_ui_button_draw(button);
     }
-    
     spark_graphics_present();
 }
 
@@ -53,11 +50,9 @@ int main(void) {
         fprintf(stderr, "Failed to initialize Spark2D\n");
         return 1;
     }
-
     spark_set_load(load);
     spark_set_update(update);
     spark_set_draw(draw);
-
     spark_run();
     cleanup();
     spark_quit();
