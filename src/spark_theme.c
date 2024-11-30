@@ -9,68 +9,34 @@ static SparkTheme* current_theme = NULL;
 static SparkTheme default_theme;
 static bool default_theme_initialized = false;
 
-static void initialize_default_theme(void) {
-    if (!default_theme_initialized) {
-        default_theme = (SparkTheme){
-            .primary = {120, 120, 120, 255},      // Default gray
-            .primary_dark = {90, 90, 90, 255},
-            .primary_light = {150, 150, 150, 255},
-            
-            .secondary = {100, 100, 100, 255},
-            .secondary_dark = {70, 70, 70, 255},
-            .secondary_light = {130, 130, 130, 255},
-            
-            .background = {255, 255, 255, 255},
-            .surface = {240, 240, 240, 255},
-            .error = {255, 0, 0, 255},
-            
-            .on_primary = {255, 255, 255, 255},
-            .on_secondary = {255, 255, 255, 255},
-            .on_background = {0, 0, 0, 255},
-            .on_surface = {0, 0, 0, 255},
-            .on_error = {255, 255, 255, 255},
-            
-            .hover_overlay = {255, 255, 255, 32},
-            .pressed_overlay = {0, 0, 0, 32},
-            .disabled_overlay = {0, 0, 0, 64},
-            
-            .elevation_levels = {0, 2, 4, 8, 16, 24},
-            
-            .spacing_unit = 8.0f,
-            .border_radius = 4.0f,
-            .icon_size = 24.0f
-        };
-        default_theme_initialized = true;
-    }
-}
-
 static SparkTheme get_preset_theme(SparkThemePreset preset) {
     switch (preset) {
         case SPARK_THEME_PRESET_TEAL:
             return (SparkTheme){
-                .primary = {0, 150, 136, 255},        // Teal
-                .primary_dark = {0, 121, 107, 255},
-                .primary_light = {77, 182, 172, 255},
+                .primary = {0, 150, 136, 255},        // Teal 500
+                .primary_dark = {0, 121, 107, 255},   // Teal 700
+                .primary_light = {77, 182, 172, 255}, // Teal 300
                 
-                .secondary = {255, 87, 34, 255},      // Deep Orange
-                .secondary_dark = {230, 74, 25, 255},
-                .secondary_light = {255, 138, 101, 255},
+                .secondary = {255, 87, 34, 255},      // Deep Orange 500
+                .secondary_dark = {230, 74, 25, 255}, // Deep Orange 700
+                .secondary_light = {255, 138, 101, 255}, // Deep Orange 300
                 
-                .background = {250, 250, 250, 255},
-                .surface = {255, 255, 255, 255},
-                .error = {176, 0, 32, 255},
+                .background = {250, 250, 250, 255},   // Grey 50
+                .surface = {255, 255, 255, 255},      // White
+                .error = {211, 47, 47, 255},          // Red 700
                 
                 .on_primary = {255, 255, 255, 255},
                 .on_secondary = {255, 255, 255, 255},
-                .on_background = {0, 0, 0, 255},
-                .on_surface = {0, 0, 0, 255},
+                .on_background = {33, 33, 33, 255},    // More refined black
+                .on_surface = {33, 33, 33, 255},
                 .on_error = {255, 255, 255, 255},
                 
-                .hover_overlay = {0, 0, 0, 32},
-                .pressed_overlay = {0, 0, 0, 64},
-                .disabled_overlay = {0, 0, 0, 96},
+                // State overlays with color tinting
+                .hover_overlay = {0, 150, 136, 8},    // Teal with 4% opacity
+                .pressed_overlay = {0, 150, 136, 16}, // Teal with 8% opacity
+                .disabled_overlay = {97, 97, 97, 38}, // Grey with 15% opacity
                 
-                .elevation_levels = {0, 2, 4, 8, 16, 24},
+                .elevation_levels = {0, 1, 2, 4, 6, 8, 12, 16, 24},
                 .spacing_unit = 8.0f,
                 .border_radius = 4.0f,
                 .icon_size = 24.0f
@@ -78,29 +44,30 @@ static SparkTheme get_preset_theme(SparkThemePreset preset) {
             
         case SPARK_THEME_PRESET_DARK:
             return (SparkTheme){
-                .primary = {187, 134, 252, 255},      // Purple
-                .primary_dark = {55, 0, 179, 255},
-                .primary_light = {231, 185, 255, 255},
+                .primary = {187, 134, 252, 255},      // Purple A200
+                .primary_dark = {155, 89, 182, 255},  // Darker purple
+                .primary_light = {203, 166, 247, 255},// Lighter purple
                 
-                .secondary = {3, 218, 198, 255},      // Teal
-                .secondary_dark = {1, 135, 134, 255},
-                .secondary_light = {96, 239, 255, 255},
+                .secondary = {3, 218, 197, 255},      // Teal A400
+                .secondary_dark = {0, 179, 164, 255}, 
+                .secondary_light = {64, 225, 208, 255},
                 
-                .background = {18, 18, 18, 255},
-                .surface = {18, 18, 18, 255},
-                .error = {207, 102, 121, 255},
+                .background = {18, 18, 18, 255},      // Grey 900
+                .surface = {30, 30, 30, 255},         // Grey 800
+                .error = {207, 102, 121, 255},        // Red A200
                 
-                .on_primary = {0, 0, 0, 255},
-                .on_secondary = {0, 0, 0, 255},
-                .on_background = {255, 255, 255, 255},
-                .on_surface = {255, 255, 255, 255},
-                .on_error = {0, 0, 0, 255},
+                .on_primary = {33, 33, 33, 255},
+                .on_secondary = {33, 33, 33, 255},
+                .on_background = {255, 255, 255, 222}, // 87% white
+                .on_surface = {255, 255, 255, 222},
+                .on_error = {33, 33, 33, 255},
                 
-                .hover_overlay = {255, 255, 255, 32},
-                .pressed_overlay = {255, 255, 255, 64},
-                .disabled_overlay = {255, 255, 255, 96},
+                // State overlays with color tinting
+                .hover_overlay = {187, 134, 252, 16},  // Primary with 8% opacity
+                .pressed_overlay = {187, 134, 252, 25},// Primary with 12% opacity
+                .disabled_overlay = {255, 255, 255, 12},// White with 10% opacity
                 
-                .elevation_levels = {0, 2, 4, 8, 16, 24},
+                .elevation_levels = {0, 1, 2, 4, 6, 8, 12, 16, 24},
                 .spacing_unit = 8.0f,
                 .border_radius = 4.0f,
                 .icon_size = 24.0f
@@ -108,33 +75,40 @@ static SparkTheme get_preset_theme(SparkThemePreset preset) {
             
         default: // SPARK_THEME_PRESET_LIGHT
             return (SparkTheme){
-                .primary = {98, 0, 238, 255},         // Purple
-                .primary_dark = {55, 0, 179, 255},
-                .primary_light = {187, 134, 252, 255},
+                .primary = {103, 58, 183, 255},       // Deep Purple 500
+                .primary_dark = {81, 45, 168, 255},   // Deep Purple 700
+                .primary_light = {149, 117, 205, 255},// Deep Purple 300
                 
-                .secondary = {3, 218, 198, 255},      // Teal
-                .secondary_dark = {1, 135, 134, 255},
-                .secondary_light = {96, 239, 255, 255},
+                .secondary = {0, 188, 212, 255},      // Cyan 500
+                .secondary_dark = {0, 151, 167, 255}, // Cyan 700
+                .secondary_light = {77, 208, 225, 255},// Cyan 300
                 
-                .background = {255, 255, 255, 255},
-                .surface = {255, 255, 255, 255},
-                .error = {176, 0, 32, 255},
+                .background = {250, 250, 250, 255},   // Grey 50
+                .surface = {255, 255, 255, 255},      // White
+                .error = {211, 47, 47, 255},          // Red 700
                 
                 .on_primary = {255, 255, 255, 255},
-                .on_secondary = {0, 0, 0, 255},
-                .on_background = {0, 0, 0, 255},
-                .on_surface = {0, 0, 0, 255},
+                .on_secondary = {33, 33, 33, 255},
+                .on_background = {33, 33, 33, 255},    // More refined black
+                .on_surface = {33, 33, 33, 255},
                 .on_error = {255, 255, 255, 255},
                 
-                .hover_overlay = {0, 0, 0, 32},
-                .pressed_overlay = {0, 0, 0, 64},
-                .disabled_overlay = {0, 0, 0, 96},
+                // State overlays with color tinting
+                .hover_overlay = {103, 58, 183, 8},    // Primary with 4% opacity
+                .pressed_overlay = {103, 58, 183, 16}, // Primary with 8% opacity
+                .disabled_overlay = {97, 97, 97, 38},  // Grey with 15% opacity
                 
-                .elevation_levels = {0, 2, 4, 8, 16, 24},
+                .elevation_levels = {0, 1, 2, 4, 6, 8, 12, 16, 24},
                 .spacing_unit = 8.0f,
                 .border_radius = 4.0f,
                 .icon_size = 24.0f
             };
+    }
+}
+static void initialize_default_theme(void) {
+    if (!default_theme_initialized) {
+        default_theme = get_preset_theme(SPARK_THEME_PRESET_LIGHT);  // Use the light theme as default
+        default_theme_initialized = true;
     }
 }
 

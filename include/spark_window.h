@@ -34,6 +34,7 @@ void spark_window_set_mode(SparkWindowMode mode);
 void spark_window_set_scale_mode(SparkScaleMode scale);
 void spark_window_get_scale(float* scale_x, float* scale_y);
 void spark_window_update_scale(void);
+void spark_window_get_size(int* width, int* height);
 
 void spark_window_set_title(const char* title);
 

@@ -36,7 +36,7 @@ struct SparkTheme {
     SDL_Color pressed_overlay;
     SDL_Color disabled_overlay;
     
-    uint8_t elevation_levels[6];
+    uint8_t elevation_levels[9];
     
     float spacing_unit;
     float border_radius;

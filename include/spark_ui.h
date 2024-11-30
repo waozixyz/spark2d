@@ -5,6 +5,8 @@
 #include "spark_font.h"
 #include "spark_graphics.h"
 #include "spark_theme.h"
+#include "spark_window.h"
+
 
 // Forward declarations
 typedef struct SparkButton SparkButton;
@@ -17,6 +19,11 @@ typedef enum {
     SPARK_BUTTON_ICON,
     SPARK_BUTTON_TEXT_AND_ICON
 } SparkButtonType;
+
+typedef enum {
+    SPARK_TAB_TOP,
+    SPARK_TAB_BOTTOM
+} SparkTabPosition;
 
 // Callback types
 typedef void (*SparkButtonCallback)(void* user_data);
@@ -53,7 +60,7 @@ void spark_ui_button_draw(SparkButton* button);
 
 // Tab bar functions
 // Creation and destruction
-SparkTabBar* spark_ui_tabbar_new(float x, float y, float width, float height);
+SparkTabBar* spark_ui_tabbar_new(SparkTabPosition position);
 void spark_ui_tabbar_free(SparkTabBar* tabbar);
 
 // Tab management

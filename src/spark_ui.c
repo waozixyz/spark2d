@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <stdio.h>
 
 struct SparkButton {
     float x, y, width, height;
@@ -30,7 +31,12 @@ struct SparkTabBar {
     int capacity;
     int active_tab;
     SparkTabCallback callback;
+    SparkTabPosition position;  // New: SPARK_TAB_TOP or SPARK_TAB_BOTTOM
+    float max_width;           // New: Optional max width constraint
+    float indicator_pos;       // New: For smooth indicator animation
+    float indicator_target;    // New: Target position for indicator
 };
+
 
 static SparkButton* create_button_base(float x, float y, float width, float height) {
     SparkButton* button = malloc(sizeof(SparkButton));
@@ -70,6 +76,11 @@ SparkButton* spark_ui_button_new_text(float x, float y, float width, float heigh
 }
 
 SparkButton* spark_ui_button_new_icon(float x, float y, float width, float height, SparkIcon* icon) {
+    if (!icon) {
+        printf("Attempted to create icon button with NULL icon\n");
+        return NULL;
+    }
+
     SparkButton* button = create_button_base(x, y, width, height);
     if (!button) return NULL;
 
@@ -127,32 +138,54 @@ void spark_ui_button_draw(SparkButton* button) {
     float scaled_width = spark_ui_scale_x(button->width);
     float scaled_height = spark_ui_scale_y(button->height);
 
-    // Draw button background with theme colors
-    SDL_Color base_color;
+    // Get base color and handle tab coloring
+    SDL_Color base_color = theme->primary;
+    SDL_Color text_color = theme->on_primary;
+    
+    SparkTab* parent_tab = NULL;
+    if (button->user_data && ((SparkTab*)button->user_data)->parent_tabbar) {
+        parent_tab = (SparkTab*)button->user_data;
+        base_color = theme->surface;
+        text_color = theme->on_surface;
+        
+        if (parent_tab->parent_tabbar->active_tab == parent_tab - parent_tab->parent_tabbar->tabs) {
+            text_color = theme->primary;
+        }
+    }
+
+    // Save current render state
+    SDL_BlendMode prev_blend;
+    SDL_GetRenderDrawBlendMode(spark.renderer, &prev_blend);
+    SDL_SetRenderDrawBlendMode(spark.renderer, SDL_BLENDMODE_BLEND);
+
+    // 1. Draw elevation shadows for non-tab buttons
+    if (!parent_tab) {
+        uint8_t elevation = button->pressed ? theme->elevation_levels[8] :
+                           button->hovered ? theme->elevation_levels[4] :
+                           theme->elevation_levels[2];
+        spark_graphics_apply_elevation(scaled_x, scaled_y, scaled_width, scaled_height, elevation);
+    }
+
+    // 2. Draw button background with state overlays
+    SDL_Color render_color = base_color;
     if (button->pressed) {
-        base_color = spark_theme_mix_colors(theme->primary, theme->pressed_overlay, 1.0f);
+        render_color = spark_theme_mix_colors(base_color, theme->pressed_overlay, 0.12f);
     } else if (button->hovered) {
-        base_color = spark_theme_mix_colors(theme->primary, theme->hover_overlay, 1.0f);
-    } else {
-        base_color = theme->primary;
+        render_color = spark_theme_mix_colors(base_color, theme->hover_overlay, 0.08f);
     }
 
     spark_graphics_set_color_with_alpha(
-        base_color.r / 255.0f,
-        base_color.g / 255.0f,
-        base_color.b / 255.0f,
-        base_color.a / 255.0f
+        render_color.r / 255.0f,
+        render_color.g / 255.0f,
+        render_color.b / 255.0f,
+        parent_tab ? 0.0f : 1.0f
     );
 
-    // Draw button with themed border radius
     spark_graphics_rounded_rectangle("fill", scaled_x, scaled_y, 
                                    scaled_width, scaled_height,
                                    theme->border_radius);
 
-    // Set text color from theme
-    SDL_Color text_color = theme->on_primary;
-    
-    // Draw content based on button type
+    // 3. Draw content (icon/text) with proper blending
     switch (button->type) {
         case SPARK_BUTTON_TEXT:
             if (button->text_texture) {
@@ -174,22 +207,19 @@ void spark_ui_button_draw(SparkButton* button) {
         case SPARK_BUTTON_ICON:
             if (button->icon) {
                 float icon_aspect = spark_graphics_icon_get_aspect_ratio(button->icon);
-                float max_size = fmin(scaled_width, scaled_height) * theme->icon_size / 24.0f;
-                float icon_width, icon_height;
+                float max_size = fmin(scaled_width, scaled_height) * 0.6f;
+                float icon_width = max_size;
+                float icon_height = max_size;
                 
                 if (icon_aspect > 1.0f) {
-                    icon_width = max_size;
-                    icon_height = max_size / icon_aspect;
+                    icon_height = icon_width / icon_aspect;
                 } else {
-                    icon_height = max_size;
-                    icon_width = max_size * icon_aspect;
+                    icon_width = icon_height * icon_aspect;
                 }
                 
-                // Center the icon in the button
                 float icon_x = scaled_x + (scaled_width - icon_width) / 2;
                 float icon_y = scaled_y + (scaled_height - icon_height) / 2;
                 
-                // Set icon color from theme
                 spark_graphics_icon_set_color(button->icon,
                     text_color.r / 255.0f,
                     text_color.g / 255.0f,
@@ -205,18 +235,15 @@ void spark_ui_button_draw(SparkButton* button) {
                 float text_width, text_height;
                 spark_graphics_text_get_scaled_size(button->text_texture, &text_width, &text_height);
                 
-                // Calculate icon size maintaining aspect ratio
                 float icon_aspect = spark_graphics_icon_get_aspect_ratio(button->icon);
-                float max_icon_height = scaled_height * theme->icon_size / 24.0f;
+                float max_icon_height = scaled_height * 0.6f;
                 float icon_width = max_icon_height * icon_aspect;
                 float icon_height = max_icon_height;
                 
-                // Position icon on the left with themed padding
                 float padding = theme->spacing_unit * spark_ui_scale_x(1.0f);
                 float icon_x = scaled_x + padding;
                 float icon_y = scaled_y + (scaled_height - icon_height) / 2;
                 
-                // Set text and icon colors from theme
                 spark_graphics_text_set_color(button->text_texture,
                     text_color.r / 255.0f,
                     text_color.g / 255.0f,
@@ -231,14 +258,17 @@ void spark_ui_button_draw(SparkButton* button) {
                 
                 spark_graphics_icon_draw(button->icon, icon_x, icon_y, icon_width, icon_height);
                 
-                // Position text after the icon with themed padding
                 float text_x = icon_x + icon_width + padding;
                 float text_y = scaled_y + (scaled_height - text_height) / 2;
                 spark_graphics_text_draw(button->text_texture, text_x, text_y);
             }
             break;
     }
+
+    // Restore render state
+    SDL_SetRenderDrawBlendMode(spark.renderer, prev_blend);
 }
+
 void spark_ui_button_update(SparkButton* button) {
     float mx, my;
     spark_ui_get_mouse_position(&mx, &my);
@@ -270,19 +300,33 @@ void spark_ui_button_free(SparkButton* button) {
         free(button);
     }
 }
-
-SparkTabBar* spark_ui_tabbar_new(float x, float y, float width, float height) {
+SparkTabBar* spark_ui_tabbar_new(SparkTabPosition position) {
     SparkTabBar* tabbar = malloc(sizeof(SparkTabBar));
     if (!tabbar) return NULL;
 
-    tabbar->x = x;
-    tabbar->y = y;
-    tabbar->width = width;
-    tabbar->height = height;
+    float scale_x, scale_y;
+    spark_ui_get_scale(&scale_x, &scale_y);
+    
+    int window_width, window_height;
+    spark_window_get_size(&window_width, &window_height);
+    
+    float ui_width = window_width / scale_x;
+    float ui_height = window_height / scale_y;
+
+    tabbar->width = ui_width;
+    tabbar->height = 48;  // Material Design height in dp
+    tabbar->position = position;
+    tabbar->x = 0;
+    tabbar->y = (position == SPARK_TAB_BOTTOM) ? 
+                (ui_height - tabbar->height) : 0;
+
     tabbar->tab_count = 0;
     tabbar->capacity = 8;
     tabbar->active_tab = -1;
     tabbar->callback = NULL;
+    tabbar->max_width = 0;
+    tabbar->indicator_pos = 0;
+    tabbar->indicator_target = 0;
 
     tabbar->tabs = malloc(sizeof(SparkTab) * tabbar->capacity);
     if (!tabbar->tabs) {
@@ -292,6 +336,7 @@ SparkTabBar* spark_ui_tabbar_new(float x, float y, float width, float height) {
 
     return tabbar;
 }
+
 
 static void tab_button_callback(void* user_data) {
     SparkTab* tab = (SparkTab*)user_data;
@@ -385,23 +430,114 @@ void spark_ui_tabbar_set_callback(SparkTabBar* tabbar, SparkTabCallback callback
 }
 
 void spark_ui_tabbar_update(SparkTabBar* tabbar) {
+    // Always use viewport width for the full width
+    float scale_x = spark.window_state.scale_x;
+    float scale_y = spark.window_state.scale_y;
+    float viewport_width = spark.window_state.viewport.w / scale_x;
+    float viewport_height = spark.window_state.viewport.h / scale_y;
+
+    // Set the tabbar width to match viewport
+    tabbar->width = viewport_width;
+    
+    // Update position based on viewport
+    tabbar->x = 0;  // Always start at left edge
+    tabbar->y = (tabbar->position == SPARK_TAB_BOTTOM) ? 
+                (viewport_height - tabbar->height) : 0;
+
+    // Calculate actual width considering max_width
+    float actual_width = tabbar->max_width > 0 ? 
+                        fmin(viewport_width, tabbar->max_width) : 
+                        viewport_width;
+    
+    // Center if using max_width
+    float start_x = tabbar->max_width > 0 ? 
+                    (viewport_width - actual_width) / 2 : 0;
+
+    // Calculate tab widths
+    float tab_width = actual_width / tabbar->tab_count;
+
+    // Update individual tab positions
     for (int i = 0; i < tabbar->tab_count; i++) {
+        tabbar->tabs[i].button->x = start_x + (tab_width * i);
+        tabbar->tabs[i].button->width = tab_width;
         spark_ui_button_update(tabbar->tabs[i].button);
     }
 }
-
 void spark_ui_tabbar_draw(SparkTabBar* tabbar) {
-    spark_graphics_set_color(0.2f, 0.2f, 0.2f);
-    spark_graphics_rectangle("fill", tabbar->x, tabbar->y, tabbar->width, tabbar->height);
+    const SparkTheme* theme = spark_theme_get_current();
+    
+    float actual_width = tabbar->max_width > 0 ? 
+                        fmin(tabbar->width, tabbar->max_width) : 
+                        tabbar->width;
+    
+    float start_x = tabbar->max_width > 0 ? 
+                    (tabbar->width - actual_width) / 2 : 
+                    tabbar->x;
 
+    float scaled_x = spark_ui_scale_x(start_x);
+    float scaled_y = spark_ui_scale_y(tabbar->y);
+    float scaled_width = spark_ui_scale_x(actual_width);
+    float scaled_height = spark_ui_scale_y(tabbar->height);
+
+    // Apply tabbar elevation
+    uint8_t elevation = theme->elevation_levels[1];
+    spark_graphics_apply_elevation(scaled_x, scaled_y, scaled_width, scaled_height, elevation);
+
+    // Draw background with slight transparency
+    spark_graphics_set_color_with_alpha(
+        theme->surface.r / 255.0f,
+        theme->surface.g / 255.0f,
+        theme->surface.b / 255.0f,
+        0.95f
+    );
+    
+    spark_graphics_rectangle("fill", scaled_x, scaled_y, 
+                           scaled_width, scaled_height);
+
+    float tab_width = actual_width / tabbar->tab_count;
+    
+    // Update indicator animation with smoother easing
+    if (tabbar->active_tab >= 0) {
+        float target_pos = tab_width * tabbar->active_tab;
+        tabbar->indicator_target = target_pos;
+        
+        // Smooth easing function
+        float dx = tabbar->indicator_target - tabbar->indicator_pos;
+        float spring = 0.2f;
+        float velocity = dx * spring;
+        tabbar->indicator_pos += velocity;
+    }
+
+    // Draw tabs
     for (int i = 0; i < tabbar->tab_count; i++) {
-        if (i == tabbar->active_tab) {
-            spark_graphics_set_color(0.8f, 0.8f, 0.8f);
-        }
         spark_ui_button_draw(tabbar->tabs[i].button);
     }
-}
 
+    // Draw animated indicator
+    if (tabbar->active_tab >= 0) {
+        float indicator_width = spark_ui_scale_x(tab_width);
+        float indicator_height = spark_ui_scale_y(2.0f);
+        
+        float indicator_y = (tabbar->position == SPARK_TAB_BOTTOM) ?
+                          scaled_y + scaled_height - indicator_height :
+                          scaled_y;
+
+        // Draw indicator with primary color
+        spark_graphics_set_color_with_alpha(
+            theme->primary.r / 255.0f,
+            theme->primary.g / 255.0f,
+            theme->primary.b / 255.0f,
+            1.0f
+        );
+
+        spark_graphics_rectangle("fill", 
+            scaled_x + spark_ui_scale_x(tabbar->indicator_pos),
+            indicator_y,
+            indicator_width,
+            indicator_height
+        );
+    }
+}
 void spark_ui_tabbar_free(SparkTabBar* tabbar) {
     if (!tabbar) return;
     

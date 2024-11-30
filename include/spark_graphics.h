@@ -28,15 +28,20 @@ typedef struct SparkText {
 
 typedef struct SparkIcon {
     SDL_Texture* texture;
-    float width;
-    float height;
+    int width;             // Changed from float to int
+    int height;            // Changed from float to int
+    struct NSVGimage* svg_data;  // Add SVG data storage
+    float last_scale;      // Add scale tracking
 } SparkIcon;
+
+void spark_graphics_init(void);
 
 SparkIcon* spark_graphics_load_icon(const char* svg_path);
 void spark_graphics_icon_draw(SparkIcon* icon, float x, float y, float w, float h);
 void spark_graphics_icon_free(SparkIcon* icon);
 float spark_graphics_icon_get_aspect_ratio(SparkIcon* icon);
 void spark_graphics_icon_get_size(SparkIcon* icon, float* width, float* height);
+bool spark_graphics_icon_update_texture(SparkIcon* icon, float scale);
 
 void spark_graphics_rounded_rectangle(const char* mode, float x, float y, float w, float h, float radius);
 void spark_graphics_icon_set_color(SparkIcon* icon, float r, float g, float b, float a);
@@ -49,5 +54,14 @@ void spark_graphics_text_free(SparkText* text);
 void spark_graphics_text_get_scaled_size(SparkText* text, float* width, float* height);
 
 SDL_Renderer* spark_graphics_get_renderer(void);
+
+void spark_graphics_rounded_rectangle_shadow(const char* mode, float x, float y, 
+    float width, float height, float radius, float blur);
+void spark_graphics_rectangle_shadow(const char* mode, float x, float y, 
+    float width, float height, float blur);
+void spark_graphics_apply_elevation(float x, float y, float width, float height, 
+    uint8_t elevation);
+SDL_Color spark_graphics_get_shadow_color(uint8_t elevation);
+SDL_Color spark_graphics_get_ambient_shadow_color(uint8_t elevation);
 
 #endif

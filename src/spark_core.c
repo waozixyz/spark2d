@@ -57,7 +57,6 @@ static void main_loop_iteration(void) {
     SDL_RenderPresent(spark.renderer);
 }
 
-
 bool spark_init(const char* title, int width, int height) {
     if ((int)SDL_Init(SDL_INIT_VIDEO) < 0) {
         fprintf(stderr, "SDL init failed: %s\n", SDL_GetError());
@@ -69,6 +68,7 @@ bool spark_init(const char* title, int width, int height) {
         SDL_Quit();
         return false;
     }
+
     // Create window
     spark.window = SDL_CreateWindow(title, width, height, SDL_WINDOW_RESIZABLE);
     if (!spark.window) {
@@ -88,10 +88,11 @@ bool spark_init(const char* title, int width, int height) {
         return false;
     }
 
+    spark_graphics_init();
+
     SDL_SetRenderDrawColor(spark.renderer, 0, 0, 0, 255);
     SDL_RenderClear(spark.renderer);
     SDL_RenderPresent(spark.renderer);
-
 
     spark.window_state.base_width = width;
     spark.window_state.base_height = height;
@@ -100,10 +101,9 @@ bool spark_init(const char* title, int width, int height) {
     spark.window_state.scale_x = 1.0f;
     spark.window_state.scale_y = 1.0f;
     spark.window_state.viewport = (SDL_Rect){0, 0, width, height};
-    
+
     return true;
 }
-
 void spark_set_load(void (*load)(void)) {
     spark.load = load;
 }
@@ -137,6 +137,8 @@ int spark_run(void) {
 }
 
 void spark_quit(void) {
+    spark_graphics_cleanup();
+    
     SDL_DestroyRenderer(spark.renderer);
     SDL_DestroyWindow(spark.window);
     TTF_Quit();

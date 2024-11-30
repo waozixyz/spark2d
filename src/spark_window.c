@@ -19,6 +19,9 @@ void spark_window_get_scale(float* scale_x, float* scale_y) {
     *scale_x = spark.window_state.scale_x;
     *scale_y = spark.window_state.scale_y;
 }
+void spark_window_get_size(int* width, int* height) {
+    SDL_GetWindowSize(spark.window, width, height);
+}
 
 void spark_window_update_scale(void) {
     int current_w, current_h;
