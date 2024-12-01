@@ -10,6 +10,8 @@
 #include "spark_timer.h"
 #include "spark_ui.h"
 #include "spark_theme.h"
+#include "spark_filesystem.h"
+#include "spark_mouse.h"
 
 // Core functions
 bool spark_init(const char* title, int width, int height); 

@@ -29,9 +29,10 @@ typedef enum {
 typedef void (*SparkButtonCallback)(void* user_data);
 typedef void (*SparkTabCallback)(int tab_index);
 
-// Now define button structure
+
 typedef struct SparkButton {
-    float x, y, width, height;
+    float x, y;
+    float width, height;
     SparkButtonType type;
     char* text;
     SparkText* text_texture;

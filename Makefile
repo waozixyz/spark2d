@@ -24,6 +24,7 @@ SOURCES = \
     $(SRC_DIR)/spark_font.c \
     $(SRC_DIR)/spark_timer.c \
     $(SRC_DIR)/spark_event.c \
+    $(SRC_DIR)/spark_filesystem.c \
     $(SRC_DIR)/spark_audio.c
 
 GRAPHICS_SOURCES = \
@@ -38,6 +39,7 @@ GRAPHICS_SOURCES = \
 # UI sources
 UI_SOURCES = \
     $(SRC_DIR)/ui/core/ui_system.c \
+    $(SRC_DIR)/ui/components/grid.c \
     $(SRC_DIR)/ui/components/button.c \
     $(SRC_DIR)/ui/components/tabbar.c
 

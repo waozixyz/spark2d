@@ -2,8 +2,9 @@
 #define SPARK_UI_BUTTON_H
 
 #include "../common.h"
-
-typedef struct SparkButton SparkButton;
+#include "spark_font.h"
+#include "spark_graphics.h"
+#include "spark_theme.h"
 
 // Creation and destruction
 SparkButton* spark_ui_button_new_text(float x, float y, float width, float height, const char* text);

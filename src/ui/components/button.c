@@ -244,8 +244,9 @@ void spark_ui_button_update(SparkButton* button) {
     button->hovered = point_in_rect(mx, my, button->x, button->y,
                                   button->width, button->height);
     
-    uint32_t mouse_state = SDL_GetMouseState(NULL, NULL);
-    bool mouse_down = (mouse_state & SDL_BUTTON_LMASK) != 0;
+    float dummy_x, dummy_y;
+    uint32_t mouse_state = SDL_GetMouseState(&dummy_x, &dummy_y);
+    bool mouse_down = (mouse_state & SDL_BUTTON_LEFT) != 0;  // Updated for SDL3
     
     if (button->hovered && mouse_down && !button->pressed) {
         button->pressed = true;
@@ -267,4 +268,29 @@ void spark_ui_button_free(SparkButton* button) {
         }
         free(button);
     }
+}
+
+
+void spark_ui_button_set_position(SparkButton* button, float x, float y) {
+    if (!button) return;
+    button->x = x;
+    button->y = y;
+}
+
+void spark_ui_button_set_size(SparkButton* button, float width, float height) {
+    if (!button) return;
+    button->width = width;
+    button->height = height;
+}
+
+void spark_ui_button_get_position(SparkButton* button, float* x, float* y) {
+    if (!button) return;
+    if (x) *x = button->x;
+    if (y) *y = button->y;
+}
+
+void spark_ui_button_get_size(SparkButton* button, float* width, float* height) {
+    if (!button) return;
+    if (width) *width = button->width;
+    if (height) *height = button->height;
 }
