@@ -40,7 +40,7 @@ struct SparkTheme {
     
     float spacing_unit;
     float border_radius;
-    float icon_size;
+    float image_size;
 };
 
 // Theme management
@@ -67,7 +67,7 @@ void spark_theme_builder_set_surface(SparkThemeBuilder* builder, SDL_Color color
 void spark_theme_builder_set_error(SparkThemeBuilder* builder, SDL_Color color);
 void spark_theme_builder_set_spacing(SparkThemeBuilder* builder, float spacing);
 void spark_theme_builder_set_border_radius(SparkThemeBuilder* builder, float radius);
-void spark_theme_builder_set_icon_size(SparkThemeBuilder* builder, float size);
+void spark_theme_builder_set_image_size(SparkThemeBuilder* builder, float size);
 SparkTheme* spark_theme_builder_build(SparkThemeBuilder* builder);
 void spark_theme_builder_free(SparkThemeBuilder* builder);
 

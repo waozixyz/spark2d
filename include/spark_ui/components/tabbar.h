@@ -22,8 +22,8 @@ void spark_ui_tabbar_free(SparkTabBar* tabbar);
 
 // Tab management
 void spark_ui_tabbar_add_text_tab(SparkTabBar* tabbar, const char* text);
-void spark_ui_tabbar_add_icon_tab(SparkTabBar* tabbar, SparkIcon* icon);
-void spark_ui_tabbar_add_text_and_icon_tab(SparkTabBar* tabbar, const char* text, SparkIcon* icon);
+void spark_ui_tabbar_add_image_tab(SparkTabBar* tabbar, SparkImage* image);
+void spark_ui_tabbar_add_text_and_image_tab(SparkTabBar* tabbar, const char* text, SparkImage* image);
 void spark_ui_tabbar_set_callback(SparkTabBar* tabbar, SparkTabCallback callback);
 
 // Tab bar configuration

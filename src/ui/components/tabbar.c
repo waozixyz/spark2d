@@ -74,29 +74,29 @@ void spark_ui_tabbar_add_text_tab(SparkTabBar* tabbar, const char* text) {
     add_tab_base(tabbar, button);
 }
 
-void spark_ui_tabbar_add_icon_tab(SparkTabBar* tabbar, SparkIcon* icon) {
+void spark_ui_tabbar_add_image_tab(SparkTabBar* tabbar, SparkImage* image) {
     float tab_width = tabbar->width / (tabbar->tab_count + 1);
-    SparkButton* button = spark_ui_button_new_icon(
+    SparkButton* button = spark_ui_button_new_image(
         tabbar->x + (tab_width * tabbar->tab_count),
         tabbar->y,
         tab_width,
         tabbar->height,
-        icon
+        image
     );
 
     if (!button) return;
     add_tab_base(tabbar, button);
 }
 
-void spark_ui_tabbar_add_text_and_icon_tab(SparkTabBar* tabbar, const char* text, SparkIcon* icon) {
+void spark_ui_tabbar_add_text_and_image_tab(SparkTabBar* tabbar, const char* text, SparkImage* image) {
     float tab_width = tabbar->width / (tabbar->tab_count + 1);
-    SparkButton* button = spark_ui_button_new_text_and_icon(
+    SparkButton* button = spark_ui_button_new_text_and_image(
         tabbar->x + (tab_width * tabbar->tab_count),
         tabbar->y,
         tab_width,
         tabbar->height,
         text,
-        icon
+        image
     );
 
     if (!button) return;
@@ -177,12 +177,12 @@ void spark_ui_tabbar_add_tab(SparkTabBar* tabbar, const SparkTabConfig* config) 
     if (error != SPARK_TABBAR_SUCCESS) return;
 
     // Handle all tab type combinations
-    if (config->text && config->icon) {
-        spark_ui_tabbar_add_text_and_icon_tab(tabbar, config->text, config->icon);
+    if (config->text && config->image) {
+        spark_ui_tabbar_add_text_and_image_tab(tabbar, config->text, config->image);
     } else if (config->text) {
         spark_ui_tabbar_add_text_tab(tabbar, config->text);
-    } else if (config->icon) {  // Handle icon-only case
-        spark_ui_tabbar_add_icon_tab(tabbar, config->icon);
+    } else if (config->image) {  // Handle image-only case
+        spark_ui_tabbar_add_image_tab(tabbar, config->image);
     }
 
     if (tabbar->tab_count > 0) {

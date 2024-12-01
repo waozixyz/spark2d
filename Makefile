@@ -32,8 +32,9 @@ GRAPHICS_SOURCES = \
     $(SRC_DIR)/graphics/core.c \
     $(SRC_DIR)/graphics/primitives.c \
     $(SRC_DIR)/graphics/text.c \
-    $(SRC_DIR)/graphics/icon.c \
+    $(SRC_DIR)/graphics/image.c \
     $(SRC_DIR)/graphics/shadows.c \
+    $(SRC_DIR)/graphics/font.c \
     $(SRC_DIR)/graphics/color.c
 
 # UI sources

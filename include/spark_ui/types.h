@@ -36,7 +36,7 @@ typedef struct SparkButton {
     SparkButtonType type;
     char* text;
     SparkText* text_texture;
-    SparkIcon* icon;
+    SparkImage* image;
     SparkButtonCallback callback;
     void* user_data;
     bool hovered;
@@ -72,7 +72,7 @@ typedef struct SparkTabAnimationConfig {
 // Add tab config
 typedef struct SparkTabConfig {
     const char* text;
-    SparkIcon* icon;
+    SparkImage* image;
     bool enabled;
     void* user_data;
 } SparkTabConfig;

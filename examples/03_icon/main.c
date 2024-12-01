@@ -2,22 +2,22 @@
 #include "spark_graphics.h"
 #include <stdio.h>
 
-static SparkIcon* icon = NULL;
+static SparkImage* image = NULL;
 
 void load(void) {
     printf("Starting load...\n");
-    // Load SVG icon
-    icon = spark_graphics_load_icon("assets/home.svg");
-    if (!icon) {
-        fprintf(stderr, "Failed to load icon\n");
+    // Load SVG image
+    image = spark_graphics_load_image("assets/home.svg");
+    if (!image) {
+        fprintf(stderr, "Failed to load image\n");
         return;
     }
 
-    printf("Icon loaded, checking initial state...\n");
-    if (!icon->texture) {
+    printf("Image loaded, checking initial state...\n");
+    if (!image->texture) {
         printf("Warning: Initial texture is NULL after loading\n");
         // Try forcing an initial texture update
-        if (!spark_graphics_icon_update_texture(icon, 1.0f)) {
+        if (!spark_graphics_image_update_texture(image, 1.0f)) {
             printf("Failed to create initial texture\n");
         }
     }
@@ -32,32 +32,32 @@ void draw(void) {
     spark_graphics_set_color(0.2f, 0.2f, 0.2f);
     spark_graphics_clear();
 
-    if (icon) {
-        if (!icon->texture) {
+    if (image) {
+        if (!image->texture) {
             return;
         }
         
-        // Set icon color to white for visibility
-        spark_graphics_icon_set_color(icon, 1.0f, 1.0f, 1.0f, 1.0f);
+        // Set image color to white for visibility
+        spark_graphics_image_set_color(image, 1.0f, 1.0f, 1.0f, 1.0f);
         
-        // Draw icon at center of screen, 40x40 pixels
-        spark_graphics_icon_draw(icon, 380, 280, 40, 40);
+        // Draw image at center of screen, 40x40 pixels
+        spark_graphics_image_draw(image, 380, 280, 40, 40);
     }
 
     spark_graphics_present();
 }
 
 void cleanup(void) {
-    if (icon) {
-        spark_graphics_icon_free(icon);
-        icon = NULL;
+    if (image) {
+        spark_graphics_image_free(image);
+        image = NULL;
     }
 }
 
 int main(void) {
     printf("Starting application...\n");
     
-    if (!spark_init("Icon Example", 800, 600)) {
+    if (!spark_init("Image Example", 800, 600)) {
         fprintf(stderr, "Failed to initialize Spark2D\n");
         return 1;
     }

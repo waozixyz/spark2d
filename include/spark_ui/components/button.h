@@ -8,9 +8,9 @@
 
 // Creation and destruction
 SparkButton* spark_ui_button_new_text(float x, float y, float width, float height, const char* text);
-SparkButton* spark_ui_button_new_icon(float x, float y, float width, float height, SparkIcon* icon);
-SparkButton* spark_ui_button_new_text_and_icon(float x, float y, float width, float height,
-                                              const char* text, SparkIcon* icon);
+SparkButton* spark_ui_button_new_image(float x, float y, float width, float height, SparkImage* image);
+SparkButton* spark_ui_button_new_text_and_image(float x, float y, float width, float height,
+                                              const char* text, SparkImage* image);
 void spark_ui_button_free(SparkButton* button);
 
 // Button configuration

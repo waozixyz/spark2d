@@ -4,7 +4,7 @@
 #include <stdio.h>
 
 static SparkTabBar* tabbar;
-static SparkIcon* home_icon;
+static SparkImage* home_image;
 
 static void on_tab_changed(int tab_index) {
     printf("Switched to tab %d\n", tab_index);
@@ -35,17 +35,17 @@ void load(void) {
         return;
     }
 
-    // Load icon
-    home_icon = spark_graphics_load_icon("assets/home.svg");
-    if (!home_icon) {
-        fprintf(stderr, "Failed to load home icon\n");
+    // Load image
+    home_image = spark_graphics_load_image("assets/home.svg");
+    if (!home_image) {
+        fprintf(stderr, "Failed to load home image\n");
         return;
     }
 
-    // Configure mixed text/icon tabs
+    // Configure mixed text/image tabs
     SparkTabConfig tabs[] = {
         { .text = "Back" },
-        { .icon = home_icon },
+        { .image = home_image },
         { .text = "Next" }
     };
 
@@ -83,9 +83,9 @@ void cleanup(void) {
         tabbar = NULL;
     }
     
-    if (home_icon) {
-        spark_graphics_icon_free(home_icon);
-        home_icon = NULL;
+    if (home_image) {
+        spark_graphics_image_free(home_image);
+        home_image = NULL;
     }
     
     spark_graphics_cleanup();

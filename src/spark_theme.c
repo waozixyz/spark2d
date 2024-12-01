@@ -39,7 +39,7 @@ static SparkTheme get_preset_theme(SparkThemePreset preset) {
                 .elevation_levels = {0, 1, 2, 4, 6, 8, 12, 16, 24},
                 .spacing_unit = 8.0f,
                 .border_radius = 4.0f,
-                .icon_size = 24.0f
+                .image_size = 24.0f
             };
             
         case SPARK_THEME_PRESET_DARK:
@@ -70,7 +70,7 @@ static SparkTheme get_preset_theme(SparkThemePreset preset) {
                 .elevation_levels = {0, 1, 2, 4, 6, 8, 12, 16, 24},
                 .spacing_unit = 8.0f,
                 .border_radius = 4.0f,
-                .icon_size = 24.0f
+                .image_size = 24.0f
             };
             
         default: // SPARK_THEME_PRESET_LIGHT
@@ -101,7 +101,7 @@ static SparkTheme get_preset_theme(SparkThemePreset preset) {
                 .elevation_levels = {0, 1, 2, 4, 6, 8, 12, 16, 24},
                 .spacing_unit = 8.0f,
                 .border_radius = 4.0f,
-                .icon_size = 24.0f
+                .image_size = 24.0f
             };
     }
 }
@@ -232,9 +232,9 @@ void spark_theme_builder_set_border_radius(SparkThemeBuilder* builder, float rad
     builder->theme.border_radius = radius;
 }
 
-void spark_theme_builder_set_icon_size(SparkThemeBuilder* builder, float size) {
+void spark_theme_builder_set_image_size(SparkThemeBuilder* builder, float size) {
     if (!builder) return;
-    builder->theme.icon_size = size;
+    builder->theme.image_size = size;
 }
 
 SparkTheme* spark_theme_builder_build(SparkThemeBuilder* builder) {

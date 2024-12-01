@@ -17,7 +17,7 @@ static SparkButton* create_button_base(float x, float y, float width, float heig
     button->height = height;
     button->text = NULL;
     button->text_texture = NULL;
-    button->icon = NULL;
+    button->image = NULL;
     button->callback = NULL;
     button->user_data = NULL;
     button->hovered = false;
@@ -44,9 +44,9 @@ SparkButton* spark_ui_button_new_text(float x, float y, float width, float heigh
     return button;
 }
 
-SparkButton* spark_ui_button_new_icon(float x, float y, float width, float height, SparkIcon* icon) {
-    if (!icon) {
-        printf("Attempted to create icon button with NULL icon\n");
+SparkButton* spark_ui_button_new_image(float x, float y, float width, float height, SparkImage* image) {
+    if (!image) {
+        printf("Attempted to create image button with NULL image\n");
         return NULL;
     }
 
@@ -54,20 +54,20 @@ SparkButton* spark_ui_button_new_icon(float x, float y, float width, float heigh
     if (!button) return NULL;
 
     button->type = SPARK_BUTTON_ICON;
-    button->icon = icon;
+    button->image = image;
 
     return button;
 }
 
-SparkButton* spark_ui_button_new_text_and_icon(float x, float y, float width, float height, 
-                                              const char* text, SparkIcon* icon) {
+SparkButton* spark_ui_button_new_text_and_image(float x, float y, float width, float height, 
+                                              const char* text, SparkImage* image) {
     SparkButton* button = create_button_base(x, y, width, height);
     if (!button) return NULL;
 
     button->type = SPARK_BUTTON_TEXT_AND_ICON;
     button->text = strdup(text);
     button->text_texture = spark_graphics_new_text(button->font, text);
-    button->icon = icon;
+    button->image = image;
 
     if (!button->text_texture) {
         free(button->text);
@@ -153,7 +153,7 @@ void spark_ui_button_draw(SparkButton* button) {
                                    scaled_width, scaled_height,
                                    theme->border_radius);
 
-    // 3. Draw content (icon/text) with proper blending
+    // 3. Draw content (image/text) with proper blending
     switch (button->type) {
         case SPARK_BUTTON_TEXT:
             if (button->text_texture) {
@@ -173,44 +173,44 @@ void spark_ui_button_draw(SparkButton* button) {
             break;
 
         case SPARK_BUTTON_ICON:
-            if (button->icon) {
-                float icon_aspect = spark_graphics_icon_get_aspect_ratio(button->icon);
+            if (button->image) {
+                float image_aspect = spark_graphics_image_get_aspect_ratio(button->image);
                 float max_size = fmin(scaled_width, scaled_height) * 0.6f;
-                float icon_width = max_size;
-                float icon_height = max_size;
+                float image_width = max_size;
+                float image_height = max_size;
 
-                if (icon_aspect > 1.0f) {
-                    icon_height = icon_width / icon_aspect;
+                if (image_aspect > 1.0f) {
+                    image_height = image_width / image_aspect;
                 } else {
-                    icon_width = icon_height * icon_aspect;
+                    image_width = image_height * image_aspect;
                 }
 
-                float icon_x = scaled_x + (scaled_width - icon_width) / 2;
-                float icon_y = scaled_y + (scaled_height - icon_height) / 2;
+                float image_x = scaled_x + (scaled_width - image_width) / 2;
+                float image_y = scaled_y + (scaled_height - image_height) / 2;
 
-                spark_graphics_icon_set_color(button->icon,
+                spark_graphics_image_set_color(button->image,
                     text_color.r / 255.0f,
                     text_color.g / 255.0f,
                     text_color.b / 255.0f,
                     text_color.a / 255.0f);
 
-                spark_graphics_icon_draw(button->icon, icon_x, icon_y, icon_width, icon_height);
+                spark_graphics_image_draw(button->image, image_x, image_y, image_width, image_height);
             }
             break;
 
         case SPARK_BUTTON_TEXT_AND_ICON:
-            if (button->icon && button->text_texture) {
+            if (button->image && button->text_texture) {
                 float text_width, text_height;
                 spark_graphics_text_get_scaled_size(button->text_texture, &text_width, &text_height);
 
-                float icon_aspect = spark_graphics_icon_get_aspect_ratio(button->icon);
-                float max_icon_height = scaled_height * 0.6f;
-                float icon_width = max_icon_height * icon_aspect;
-                float icon_height = max_icon_height;
+                float image_aspect = spark_graphics_image_get_aspect_ratio(button->image);
+                float max_image_height = scaled_height * 0.6f;
+                float image_width = max_image_height * image_aspect;
+                float image_height = max_image_height;
 
                 float padding = theme->spacing_unit * spark_ui_scale_x(1.0f);
-                float icon_x = scaled_x + padding;
-                float icon_y = scaled_y + (scaled_height - icon_height) / 2;
+                float image_x = scaled_x + padding;
+                float image_y = scaled_y + (scaled_height - image_height) / 2;
 
                 spark_graphics_text_set_color(button->text_texture,
                     text_color.r / 255.0f,
@@ -218,15 +218,15 @@ void spark_ui_button_draw(SparkButton* button) {
                     text_color.b / 255.0f,
                     text_color.a / 255.0f);
 
-                spark_graphics_icon_set_color(button->icon,
+                spark_graphics_image_set_color(button->image,
                     text_color.r / 255.0f,
                     text_color.g / 255.0f,
                     text_color.b / 255.0f,
                     text_color.a / 255.0f);
 
-                spark_graphics_icon_draw(button->icon, icon_x, icon_y, icon_width, icon_height);
+                spark_graphics_image_draw(button->image, image_x, image_y, image_width, image_height);
 
-                float text_x = icon_x + icon_width + padding;
+                float text_x = image_x + image_width + padding;
                 float text_y = scaled_y + (scaled_height - text_height) / 2;
                 spark_graphics_text_draw(button->text_texture, text_x, text_y);
             }
