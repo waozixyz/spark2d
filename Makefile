@@ -43,7 +43,8 @@ UI_SOURCES = \
     $(SRC_DIR)/ui/components/grid.c \
     $(SRC_DIR)/ui/components/button.c \
     $(SRC_DIR)/ui/components/dropdown.c \
-    $(SRC_DIR)/ui/components/tabbar.c
+    $(SRC_DIR)/ui/components/tabbar.c \
+    $(SRC_DIR)/ui/components/slider.c \
 
 # Combine all sources
 ALL_SOURCES = $(SOURCES) $(GRAPHICS_SOURCES) $(UI_SOURCES)

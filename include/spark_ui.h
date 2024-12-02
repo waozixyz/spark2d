@@ -7,5 +7,6 @@
 #include "spark_ui/components/button.h"
 #include "spark_ui/components/tabbar.h"
 #include "spark_ui/components/dropdown.h"
+#include "spark_ui/components/slider.h"
 
 #endif /* SPARK_UI_H */

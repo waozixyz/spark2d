@@ -295,3 +295,22 @@ void spark_ui_button_get_size(SparkButton* button, float* width, float* height) 
     if (width) *width = button->width;
     if (height) *height = button->height;
 }
+
+const char* spark_ui_button_get_text(const SparkButton* button) {
+    if (!button) return NULL;
+    return button->text;
+}
+
+void spark_ui_button_set_text(SparkButton* button, const char* text) {
+    if (!button) return;
+    
+    if (button->text) {
+        free((void*)button->text);
+    }
+    button->text = strdup(text);
+    
+    if (button->text_texture) {
+        spark_graphics_text_free(button->text_texture);
+    }
+    button->text_texture = spark_graphics_new_text(button->font, text);
+}

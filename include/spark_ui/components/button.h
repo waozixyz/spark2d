@@ -27,4 +27,8 @@ void spark_ui_button_get_size(SparkButton* button, float* width, float* height);
 void spark_ui_button_update(SparkButton* button);
 void spark_ui_button_draw(SparkButton* button);
 
+
+const char* spark_ui_button_get_text(const SparkButton* button);
+void spark_ui_button_set_text(SparkButton* button, const char* text);
+
 #endif /* SPARK_UI_BUTTON_H */
