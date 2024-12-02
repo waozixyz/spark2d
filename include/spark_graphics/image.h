@@ -19,4 +19,7 @@ float spark_graphics_image_get_aspect_ratio(SparkImage* image);
 void spark_graphics_image_get_size(SparkImage* image, float* width, float* height);
 void spark_graphics_image_set_color(SparkImage* image, float r, float g, float b, float a);
 
+float spark_graphics_image_get_height(SparkImage* image);
+float spark_graphics_image_get_width(SparkImage* image);
+
 #endif

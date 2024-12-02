@@ -167,6 +167,16 @@ void spark_graphics_image_get_size(SparkImage* image, float* width, float* heigh
     *width = image->width;
     *height = image->height;
 }
+float spark_graphics_image_get_height(SparkImage* image) {
+    if (!image) return 0;
+    return image->height;
+}
+
+float spark_graphics_image_get_width(SparkImage* image) {
+    if (!image) return 0;
+    return image->width;
+}
+
 void spark_graphics_image_set_color(SparkImage* image, float r, float g, float b, float a) {
     if (!image || !image->texture) {
         return;

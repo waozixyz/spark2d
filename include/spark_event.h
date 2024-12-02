@@ -92,5 +92,6 @@ bool spark_event_push(SparkEventType type, void* data, size_t data_size);
 void spark_event_quit(void);
 bool spark_event_add_handler(SparkEventType type, SparkEventHandler handler);
 void spark_event_remove_handler(SparkEventType type);
+void spark_set_event_handler(SparkEventHandler handler);
 
 #endif

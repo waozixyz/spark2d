@@ -262,3 +262,10 @@ void spark_event_remove_handler(SparkEventType type) {
         }
     }
 }
+
+void spark_set_event_handler(SparkEventHandler handler) {
+    // Add as a global event handler for all event types
+    for (SparkEventType type = SPARK_EVENT_NONE; type < SPARK_EVENT_CUSTOM_BEGIN; type++) {
+        spark_event_add_handler(type, handler);
+    }
+}

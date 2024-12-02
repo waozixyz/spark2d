@@ -42,6 +42,10 @@ typedef struct SparkButton {
     bool hovered;
     bool pressed;
     SparkFont* font;
+    SDL_Color custom_color;
+    bool has_custom_color;
+    float corner_radius;
+    float scale;
 } SparkButton;
 
 

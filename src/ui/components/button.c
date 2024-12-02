@@ -314,3 +314,4 @@ void spark_ui_button_set_text(SparkButton* button, const char* text) {
     }
     button->text_texture = spark_graphics_new_text(button->font, text);
 }
+
