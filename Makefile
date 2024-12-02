@@ -42,6 +42,7 @@ UI_SOURCES = \
     $(SRC_DIR)/ui/core/ui_system.c \
     $(SRC_DIR)/ui/components/grid.c \
     $(SRC_DIR)/ui/components/button.c \
+    $(SRC_DIR)/ui/components/dropdown.c \
     $(SRC_DIR)/ui/components/tabbar.c
 
 # Combine all sources
