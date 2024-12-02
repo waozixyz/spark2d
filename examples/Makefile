@@ -1,7 +1,7 @@
 CC=gcc
 EMCC=emcc
 CFLAGS=-Wall -Wextra -I../include $(shell pkg-config --cflags sdl3-ttf)
-LDFLAGS=-L.. -lspark2d -lSDL3 -lSDL3_ttf -lm $(shell pkg-config --libs sdl3-ttf)
+LDFLAGS=-L.. -lspark2d -lSDL3 -lSDL3_ttf -lSDL3_image -lm $(shell pkg-config --libs sdl3-ttf)
 
 EM_INCLUDES=-I$(shell em-config CACHE)/sysroot/include
 EM_LIBPATH=-L$(shell em-config CACHE)/sysroot/lib

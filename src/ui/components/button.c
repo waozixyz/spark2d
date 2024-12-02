@@ -53,7 +53,7 @@ SparkButton* spark_ui_button_new_image(float x, float y, float width, float heig
     SparkButton* button = create_button_base(x, y, width, height);
     if (!button) return NULL;
 
-    button->type = SPARK_BUTTON_ICON;
+    button->type = SPARK_BUTTON_IMAGE;
     button->image = image;
 
     return button;
@@ -64,7 +64,7 @@ SparkButton* spark_ui_button_new_text_and_image(float x, float y, float width, f
     SparkButton* button = create_button_base(x, y, width, height);
     if (!button) return NULL;
 
-    button->type = SPARK_BUTTON_TEXT_AND_ICON;
+    button->type = SPARK_BUTTON_TEXT_AND_IMAGE;
     button->text = strdup(text);
     button->text_texture = spark_graphics_new_text(button->font, text);
     button->image = image;
@@ -171,9 +171,8 @@ void spark_ui_button_draw(SparkButton* button) {
                 spark_graphics_text_draw(button->text_texture, text_x, text_y);
             }
             break;
-
-        case SPARK_BUTTON_ICON:
-            if (button->image) {
+        case SPARK_BUTTON_IMAGE:
+            if (button->image && button->image->texture) {
                 float image_aspect = spark_graphics_image_get_aspect_ratio(button->image);
                 float max_size = fmin(scaled_width, scaled_height) * 0.6f;
                 float image_width = max_size;
@@ -188,17 +187,19 @@ void spark_ui_button_draw(SparkButton* button) {
                 float image_x = scaled_x + (scaled_width - image_width) / 2;
                 float image_y = scaled_y + (scaled_height - image_height) / 2;
 
-                spark_graphics_image_set_color(button->image,
-                    text_color.r / 255.0f,
-                    text_color.g / 255.0f,
-                    text_color.b / 255.0f,
-                    text_color.a / 255.0f);
+                // Check if the texture is actually being rendered with these values
+                SDL_SetTextureColorMod(button->image->texture,
+                    text_color.r,
+                    text_color.g,
+                    text_color.b);
+                SDL_SetTextureAlphaMod(button->image->texture, text_color.a);
 
                 spark_graphics_image_draw(button->image, image_x, image_y, image_width, image_height);
+            } else {
+                printf("Button image or texture is NULL\n");
             }
             break;
-
-        case SPARK_BUTTON_TEXT_AND_ICON:
+        case SPARK_BUTTON_TEXT_AND_IMAGE:
             if (button->image && button->text_texture) {
                 float text_width, text_height;
                 spark_graphics_text_get_scaled_size(button->text_texture, &text_width, &text_height);

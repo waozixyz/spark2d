@@ -1,41 +1,89 @@
 #include "spark_graphics/text.h"
+#include "spark_graphics/font.h"
 #include "../internal.h"
 #include "internal.h"
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #define FONT_WIDTH 8
 #define FONT_HEIGHT 8
 #define FIRST_CHAR 32
 #define NUM_CHARS 91
 
-static SparkFont* current_font = NULL;
 static void spark_graphics_draw_char(SparkFont* font, char c, float x, float y);
-
-void spark_graphics_set_font(SparkFont* font) {
-    current_font = font ? font : spark_font_get_default(spark.renderer);
-}
-
-
-SparkFont* spark_graphics_get_font(void) {
-    if (!current_font) {
-        current_font = spark_font_get_default(spark.renderer);
-    }
-    return current_font;
-}
-
 
 SparkText* spark_graphics_new_text(SparkFont* font, const char* text) {
     SparkText* txt = malloc(sizeof(SparkText));
     if (!txt) return NULL;
-    txt->font = font ? font : default_font;
+    txt->font = font ? font : spark_graphics_get_font();
     txt->color = (SDL_Color){255, 255, 255, 255}; // Default to white
     txt->text = strdup(text);
     txt->width = strlen(text) * spark_font_get_width(txt->font);
     txt->height = spark_font_get_height(txt->font);
     txt->texture = NULL;
+
+    if (txt->font->type == SPARK_FONT_TYPE_TTF) {
+        SDL_Surface* surface = TTF_RenderText_Solid(txt->font->ttf, txt->text, strlen(txt->text), txt->color);
+        if (surface) {
+            txt->texture = SDL_CreateTextureFromSurface(spark.renderer, surface);
+            txt->width = surface->w;
+            txt->height = surface->h;
+            SDL_DestroySurface(surface);
+        }
+    }
+    
     return txt;
 }
+
+
+
+void spark_graphics_text_draw(SparkText* text, float x, float y) {
+    if (!text || !text->font) return;
+    
+    if (text->font->type == SPARK_FONT_TYPE_TTF) {
+        if (!text->texture) {
+            SDL_Surface* surface = TTF_RenderText_Solid(text->font->ttf, text->text, strlen(text->text), text->color);
+            if (!surface) {
+                fprintf(stderr, "Failed to render text: %s\n", SDL_GetError());
+                return;
+            }
+            
+            text->texture = SDL_CreateTextureFromSurface(spark.renderer, surface);
+            text->width = surface->w;
+            text->height = surface->h;
+            SDL_DestroySurface(surface);
+        }
+        
+        if (text->texture) {
+            SDL_FRect dest = {
+                .x = x,
+                .y = y,
+                .w = text->width * text->font->scale,
+                .h = text->height * text->font->scale
+            };
+            SDL_RenderTexture(spark.renderer, text->texture, NULL, &dest);
+        }
+    } else {
+        uint8_t r, g, b, a;
+        SDL_GetRenderDrawColor(spark.renderer, &r, &g, &b, &a);
+        
+        SDL_SetRenderDrawColor(spark.renderer,
+            text->color.r,
+            text->color.g,
+            text->color.b,
+            text->color.a);
+            
+        float cursor_x = x;
+        for (const char* p = text->text; *p; p++) {
+            spark_graphics_draw_char(text->font, *p, cursor_x, y);
+            cursor_x += spark_font_get_scaled_width(text->font);
+        }
+        
+        SDL_SetRenderDrawColor(spark.renderer, r, g, b, a);
+    }
+}
+
 
 void spark_graphics_text_get_scaled_size(SparkText* text, float* width, float* height) {
     float scale_x, scale_y;
@@ -49,32 +97,6 @@ void spark_graphics_text_set_color(SparkText* text, float r, float g, float b, f
     text->color.g = (uint8_t)(g * 255);
     text->color.b = (uint8_t)(b * 255);
     text->color.a = (uint8_t)(a * 255);
-}
-
-void spark_graphics_text_draw(SparkText* text, float x, float y) {
-    if (!text || !text->font) return;
-    
-    uint8_t r, g, b, a;
-    SDL_GetRenderDrawColor(spark.renderer, &r, &g, &b, &a);
-    
-    SDL_SetRenderDrawColor(spark.renderer,
-        text->color.r,
-        text->color.g,
-        text->color.b,
-        text->color.a);
-    
-    spark_font_draw_text(text->font, text->text, x, y);
-    
-    SDL_SetRenderDrawColor(spark.renderer, r, g, b, a);
-}
-
-void spark_graphics_text_free(SparkText* text) {
-    if (text) {
-        if (text->text) {
-            free((void*)text->text);
-        }
-        free(text);
-    }
 }
 
 void spark_graphics_print(const char* text, float x, float y) {
@@ -227,5 +249,17 @@ void spark_graphics_printf(const char* text, float x, float y, float wrap_width,
         }
         
         spark_graphics_print(line, line_x, line_y);
+    }
+}
+
+void spark_graphics_text_free(SparkText* text) {
+    if (text) {
+        if (text->text) {
+            free((void*)text->text);
+        }
+        if (text->texture) {
+            SDL_DestroyTexture(text->texture);
+        }
+        free(text);
     }
 }

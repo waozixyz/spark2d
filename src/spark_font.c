@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <SDL3_ttf/SDL_ttf.h>
 
 // Define a simple 8x8 bitmap font
 static const unsigned char default_font_data[] = {
@@ -197,13 +198,30 @@ static const unsigned char default_font_data[] = {
 #define NUM_CHARS 91 
 
 SparkFont* spark_font_new(const char* filename, int size) {
+    // Check if TTF is initialized first
+    if (!TTF_WasInit()) {
+        if (TTF_Init() != 0) {
+            fprintf(stderr, "Failed to initialize SDL_ttf: %s\n", SDL_GetError());
+            return NULL;
+        }
+    }
+    
+    // Allocate font structure first
     SparkFont* font = malloc(sizeof(SparkFont));
+    if (!font) {
+        fprintf(stderr, "Failed to allocate memory for font\n");
+        return NULL;
+    }
+    
+    // Initialize basic members
     font->type = SPARK_FONT_TYPE_TTF;
     font->scale = 1.0f;
+    font->renderer = NULL; // Will be set by graphics system
     
+    // Try to load the TTF font
     font->ttf = TTF_OpenFont(filename, size);
-    
     if (!font->ttf) {
+        fprintf(stderr, "Failed to load font %s: %s\n", filename, SDL_GetError());
         free(font);
         return NULL;
     }
@@ -257,62 +275,6 @@ float spark_font_get_scaled_height(SparkFont* font) {
 float spark_font_get_scaled_width(SparkFont* font) {
     return spark_font_get_width(font) * font->scale;
 }
-void spark_font_draw_char(SparkFont* font, char c, float x, float y) {
-    if (c < FIRST_CHAR || c >= FIRST_CHAR + NUM_CHARS) return;
-    
-    int char_index = c - FIRST_CHAR;
-    float pixel_size = font->scale;
-    
-    const unsigned char* char_data = &font->bitmap.font_data[char_index * FONT_HEIGHT];
-    
-    // Pre-calculate rectangles for batch rendering
-    SDL_FRect pixels[FONT_WIDTH * FONT_HEIGHT];
-    int pixel_count = 0;
-    
-    for (int row = 0; row < FONT_HEIGHT; row++) {
-        unsigned char pattern = char_data[row];
-        for (int col = 0; col < FONT_WIDTH; col++) {
-            if (pattern & (0x80 >> col)) {
-                pixels[pixel_count++] = (SDL_FRect){
-                    .x = x + (col * pixel_size),
-                    .y = y + (row * pixel_size),
-                    .w = pixel_size,
-                    .h = pixel_size
-                };
-            }
-        }
-    }
-    
-    // Batch render all pixels at once
-    if (pixel_count > 0) {
-        SDL_RenderFillRects(font->renderer, pixels, pixel_count);
-    }
-}
-
-void spark_font_draw_text(SparkFont* font, const char* text, float x, float y) {
-    float cursor_x = x;
-    
-    for (const char* p = text; *p; p++) {
-        spark_font_draw_char(font, *p, cursor_x, y);
-        cursor_x += spark_font_get_scaled_width(font);
-    }
-}
-
-void spark_font_draw_text_scaled(SparkFont* font, const char* text, float x, float y, float scale) {
-    float old_scale = font->scale;
-    font->scale = scale;
-    spark_font_draw_text(font, text, x, y);
-    font->scale = old_scale;
-}
-
-void spark_font_get_text_size(SparkFont* font, const char* text, float* width, float* height) {
-    if (width) {
-        *width = strlen(text) * spark_font_get_scaled_width(font);
-    }
-    if (height) {
-        *height = spark_font_get_scaled_height(font);
-    }
-}
 
 void spark_font_get_text_bounds(SparkFont* font, const char* text, float x, float y,
                               float* min_x, float* min_y, float* max_x, float* max_y) {
@@ -323,6 +285,15 @@ void spark_font_get_text_bounds(SparkFont* font, const char* text, float x, floa
     if (min_y) *min_y = y;
     if (max_x) *max_x = x + w;
     if (max_y) *max_y = y + h;
+}
+
+void spark_font_get_text_size(SparkFont* font, const char* text, float* width, float* height) {
+    if (width) {
+        *width = strlen(text) * spark_font_get_scaled_width(font);
+    }
+    if (height) {
+        *height = spark_font_get_scaled_height(font);
+    }
 }
 
 void spark_font_free(SparkFont* font) {

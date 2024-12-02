@@ -16,8 +16,8 @@ struct SparkTabBar;
 // Define enums first
 typedef enum {
     SPARK_BUTTON_TEXT,
-    SPARK_BUTTON_ICON,
-    SPARK_BUTTON_TEXT_AND_ICON
+    SPARK_BUTTON_IMAGE,
+    SPARK_BUTTON_TEXT_AND_IMAGE
 } SparkButtonType;
 
 typedef enum {

@@ -1,102 +1,82 @@
 #include "spark_graphics/image.h"
 #include "../internal.h"
 #include "internal.h"
+#include <SDL3_image/SDL_image.h>  // Correct include path
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
 
-SparkImage* spark_graphics_load_image(const char* svg_path) {    
-    if (!global_rasterizer) {
-        printf("ERROR: Rasterizer not initialized!\n");
+SparkImage* spark_graphics_load_image(const char* path) {    
+    SDL_Surface* surface = IMG_Load(path);
+    if (!surface) {
+        printf("Failed to load image: %s\n", SDL_GetError());
         return NULL;
     }
 
     SparkImage* image = malloc(sizeof(SparkImage));
     if (!image) {
+        SDL_DestroySurface(surface);
         printf("Failed to allocate image memory\n");
         return NULL;
     }
 
-    image->svg_data = nsvgParseFromFile(svg_path, "px", 96.0f);
-    if (!image->svg_data) {
-        printf("Failed to parse SVG file: %s\n", svg_path);
-        free(image);
-        return NULL;
-    }
-
-    image->width = (int)image->svg_data->width;
-    image->height = (int)image->svg_data->height;
+    image->width = surface->w;
+    image->height = surface->h;
+    image->surface = surface;
     
-    image->texture = NULL;
-    image->last_scale = 1.0f;
-
-    if (!spark_graphics_image_update_texture(image, 1.0f)) {
-        printf("Failed initial texture creation\n");
-        nsvgDelete(image->svg_data);
+    // Initialize color modulation to white (no modification)
+    image->color_mod.r = 255;
+    image->color_mod.g = 255;
+    image->color_mod.b = 255;
+    image->color_mod.a = 255;
+    
+    image->texture = SDL_CreateTextureFromSurface(spark.renderer, surface);
+    if (!image->texture) {
+        printf("Failed to create texture: %s\n", SDL_GetError());
+        SDL_DestroySurface(surface);
         free(image);
         return NULL;
     }
 
+    SDL_SetTextureBlendMode(image->texture, SDL_BLENDMODE_BLEND);
     return image;
 }
 
-bool spark_graphics_image_update_texture(SparkImage* image, float scale) {
-    if (!image || !image->svg_data || !global_rasterizer) {
-        printf("Invalid image update parameters\n");
-        return false;
+
+SparkImage* spark_graphics_new_image_from_memory(const void* data, size_t size) {
+    SDL_IOStream* io = SDL_IOFromConstMem(data, size);
+    if (!io) {
+        printf("Failed to create IO from memory: %s\n", SDL_GetError());
+        return NULL;
     }
 
-    int new_width = (int)(image->width * scale);
-    int new_height = (int)(image->height * scale);
-
-    unsigned char* pixels = malloc(new_width * new_height * 4);
-    if (!pixels) {
-        printf("Failed to allocate pixel buffer\n");
-        return false;
+    SDL_Surface* surface = IMG_Load_IO(io, true);  // Just use standard C boolean
+    if (!surface) {
+        printf("Failed to load image from memory: %s\n", SDL_GetError());
+        SDL_CloseIO(io);
+        return NULL;
     }
 
-    memset(pixels, 0, new_width * new_height * 4);
+    SparkImage* image = malloc(sizeof(SparkImage));
+    if (!image) {
+        SDL_DestroySurface(surface);
+        return NULL;
+    }
 
-    nsvgRasterize(global_rasterizer, image->svg_data, 0, 0, scale, 
-                 pixels, new_width, new_height, new_width * 4);
+    image->width = surface->w;
+    image->height = surface->h;
+    image->surface = surface;
 
-    image->texture = SDL_CreateTexture(spark.renderer,
-                                    SDL_PIXELFORMAT_RGBA32,
-                                    SDL_TEXTUREACCESS_STREAMING,
-                                    new_width, new_height);
-
+    image->texture = SDL_CreateTextureFromSurface(spark.renderer, surface);
     if (!image->texture) {
-        printf("Failed to create texture: %s\n", SDL_GetError());
-        free(pixels);
-        return false;
+        SDL_DestroySurface(surface);
+        free(image);
+        return NULL;
     }
 
-    void* texture_pixels;
-    int pitch;
-    if (SDL_LockTexture(image->texture, NULL, &texture_pixels, &pitch) < 0) {
-        printf("Failed to lock texture: %s\n", SDL_GetError());
-        SDL_DestroyTexture(image->texture);
-        image->texture = NULL;
-        free(pixels);
-        return false;
-    }
-
-    memcpy(texture_pixels, pixels, new_width * new_height * 4);
-    SDL_UnlockTexture(image->texture);
-
-    if (SDL_SetTextureBlendMode(image->texture, SDL_BLENDMODE_BLEND) < 0) {
-        printf("Failed to set blend mode: %s\n", SDL_GetError());
-        SDL_DestroyTexture(image->texture);
-        image->texture = NULL;
-        free(pixels);
-        return false;
-    }
-
-    free(pixels);
-    image->last_scale = scale;
-
-    return true;
+    SDL_SetTextureBlendMode(image->texture, SDL_BLENDMODE_BLEND);
+    return image;
 }
 
 void spark_graphics_image_draw(SparkImage* image, float x, float y, float w, float h) {
@@ -105,29 +85,69 @@ void spark_graphics_image_draw(SparkImage* image, float x, float y, float w, flo
         return;
     }
 
-    float scale_x, scale_y;
-    spark_window_get_scale(&scale_x, &scale_y);
-    float scale = fmax(scale_x, scale_y);
+    // Apply current color modulation
+    SDL_SetTextureColorMod(image->texture, 
+                          image->color_mod.r,
+                          image->color_mod.g,
+                          image->color_mod.b);
+    SDL_SetTextureAlphaMod(image->texture, image->color_mod.a);
 
-    if (!spark_graphics_image_update_texture(image, scale)) {
-        printf("Failed to update texture for scale %.2f\n", scale);
-        return;
+    // If using advanced filters, bind appropriate shader here
+    switch(image->filter_mode) {
+        case SPARK_IMAGE_FILTER_MULTIPLY:
+            // Bind multiply shader
+            break;
+        case SPARK_IMAGE_FILTER_SCREEN:
+            // Bind screen shader
+            break;
+        case SPARK_IMAGE_FILTER_OVERLAY:
+            // Bind overlay shader
+            break;
+        default:
+            break;
     }
 
     SDL_FRect dest = {x, y, w, h};
     SDL_RenderTextureRotated(spark.renderer, image->texture, NULL, &dest, 0.0, NULL, SDL_FLIP_NONE);
+
+    // Unbind shader if one was used
+}
+
+void spark_graphics_image_draw_scaled(SparkImage* image, float x, float y, float sx, float sy) {
+    if (!image || !image->texture) {
+        printf("Error: Invalid image or texture in draw_scaled\n");
+        return;
+    }
+
+    float w = image->width * sx;
+    float h = image->height * sy;
+    spark_graphics_image_draw(image, x, y, w, h);
+}
+
+void spark_graphics_image_draw_rotated(SparkImage* image, float x, float y, float r, 
+                                     float sx, float sy, float ox, float oy) {
+    if (!image || !image->texture) {
+        printf("Error: Invalid image or texture in draw_rotated\n");
+        return;
+    }
+
+    float w = image->width * sx;
+    float h = image->height * sy;
+    SDL_FPoint origin = {ox, oy};
+    SDL_FRect dest = {x - ox * sx, y - oy * sy, w, h};
+    SDL_RenderTextureRotated(spark.renderer, image->texture, NULL, &dest, r * (180.0f / M_PI), &origin, SDL_FLIP_NONE);
 }
 
 void spark_graphics_image_free(SparkImage* image) {
-    if (image) {
-        if (image->texture) {
-            SDL_DestroyTexture(image->texture);
-        }
-        if (image->svg_data) {
-            nsvgDelete(image->svg_data);
-        }
-        free(image);
+    if (!image) return;
+
+    if (image->texture) {
+        SDL_DestroyTexture(image->texture);
     }
+    if (image->surface) {
+        SDL_DestroySurface(image->surface);
+    }
+    free(image);
 }
 
 float spark_graphics_image_get_aspect_ratio(SparkImage* image) {
@@ -135,34 +155,6 @@ float spark_graphics_image_get_aspect_ratio(SparkImage* image) {
         return 1.0f;
     }
     return (float)image->width / (float)image->height;
-}
-
-void spark_graphics_image_set_color(SparkImage* image, float r, float g, float b, float a) {
-    if (!image || !image->svg_data) {
-        fprintf(stderr, "Error: Invalid image or uninitialized SVG data\n");
-        return;
-    }
-
-    if (r < 0.0f || r > 1.0f || g < 0.0f || g > 1.0f || 
-        b < 0.0f || b > 1.0f || a < 0.0f || a > 1.0f) {
-        fprintf(stderr, "Error: Invalid color values\n");
-        return;
-    }
-
-    uint8_t red = (uint8_t)(r * 255);
-    uint8_t green = (uint8_t)(g * 255);
-    uint8_t blue = (uint8_t)(b * 255);
-    uint8_t alpha = (uint8_t)(a * 255);
-    uint32_t color = (alpha << 24) | (red << 16) | (green << 8) | blue;
-
-    for (NSVGshape* shape = image->svg_data->shapes; shape != NULL; shape = shape->next) {
-        if (shape->fill.type == NSVG_PAINT_COLOR) {
-            shape->fill.color = color;
-        }
-        if (shape->stroke.type == NSVG_PAINT_COLOR) {
-            shape->stroke.color = color;
-        }
-    }
 }
 
 void spark_graphics_image_get_size(SparkImage* image, float* width, float* height) {
@@ -174,4 +166,28 @@ void spark_graphics_image_get_size(SparkImage* image, float* width, float* heigh
     
     *width = image->width;
     *height = image->height;
+}
+void spark_graphics_image_set_color(SparkImage* image, float r, float g, float b, float a) {
+    if (!image || !image->texture) {
+        return;
+    }
+
+    // Store the color modulation
+    image->color_mod.r = (uint8_t)(r * 255.0f);
+    image->color_mod.g = (uint8_t)(g * 255.0f);
+    image->color_mod.b = (uint8_t)(b * 255.0f);
+    image->color_mod.a = (uint8_t)(a * 255.0f);
+
+    // Apply color modulation to texture
+    SDL_SetTextureColorMod(image->texture, 
+                          image->color_mod.r,
+                          image->color_mod.g,
+                          image->color_mod.b);
+    SDL_SetTextureAlphaMod(image->texture, image->color_mod.a);
+}
+
+
+void spark_graphics_image_set_filter(SparkImage* image, SparkImageFilterMode mode) {
+    if (!image) return;
+    image->filter_mode = mode;
 }

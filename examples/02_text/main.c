@@ -37,7 +37,7 @@ void cleanup(void) {
     }
 }
 int main(void) {
-    if (!spark_init("Font Example", 800, 600)) {
+    if (!spark_init("Text Example", 800, 600)) {
         fprintf(stderr, "Failed to initialize Spark2D\n");
         return 1;
     }
