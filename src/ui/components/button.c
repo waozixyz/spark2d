@@ -157,6 +157,21 @@ void spark_ui_button_draw(SparkButton* button) {
     switch (button->type) {
         case SPARK_BUTTON_TEXT:
             if (button->text_texture) {
+                float scale_x, scale_y;
+                spark_window_get_scale(&scale_x, &scale_y);
+                float base_font_size = 16.0f;
+                float scaled_size = base_font_size * fmin(scale_x, scale_y);
+                
+                // Update font size based on type
+                if (button->font->type == SPARK_FONT_TYPE_TTF) {
+                    if (spark_font_update_size(button->font, scaled_size)) {
+                        spark_graphics_text_free(button->text_texture);
+                        button->text_texture = spark_graphics_new_text(button->font, button->text);
+                    }
+                } else {
+                    spark_font_set_scale(button->font, scaled_size / base_font_size);
+                }
+
                 float text_width, text_height;
                 spark_graphics_text_get_scaled_size(button->text_texture, &text_width, &text_height);
                 float text_x = scaled_x + (scaled_width - text_width) / 2;
@@ -171,6 +186,7 @@ void spark_ui_button_draw(SparkButton* button) {
                 spark_graphics_text_draw(button->text_texture, text_x, text_y);
             }
             break;
+
         case SPARK_BUTTON_IMAGE:
             if (button->image && button->image->texture) {
                 float image_aspect = spark_graphics_image_get_aspect_ratio(button->image);
@@ -187,32 +203,60 @@ void spark_ui_button_draw(SparkButton* button) {
                 float image_x = scaled_x + (scaled_width - image_width) / 2;
                 float image_y = scaled_y + (scaled_height - image_height) / 2;
 
-                // Check if the texture is actually being rendered with these values
-                SDL_SetTextureColorMod(button->image->texture,
-                    text_color.r,
-                    text_color.g,
-                    text_color.b);
-                SDL_SetTextureAlphaMod(button->image->texture, text_color.a);
+                spark_graphics_image_set_color(button->image,
+                    text_color.r / 255.0f,
+                    text_color.g / 255.0f,
+                    text_color.b / 255.0f,
+                    text_color.a / 255.0f);
 
                 spark_graphics_image_draw(button->image, image_x, image_y, image_width, image_height);
-            } else {
-                printf("Button image or texture is NULL\n");
             }
             break;
+
         case SPARK_BUTTON_TEXT_AND_IMAGE:
             if (button->image && button->text_texture) {
+                // Update font size like in TEXT case
+                float scale_x, scale_y;
+                spark_window_get_scale(&scale_x, &scale_y);
+                float base_font_size = 16.0f;
+                float scaled_size = base_font_size * fmin(scale_x, scale_y);
+                
+                if (button->font->type == SPARK_FONT_TYPE_TTF) {
+                    if (spark_font_update_size(button->font, scaled_size)) {
+                        spark_graphics_text_free(button->text_texture);
+                        button->text_texture = spark_graphics_new_text(button->font, button->text);
+                    }
+                } else {
+                    spark_font_set_scale(button->font, scaled_size / base_font_size);
+                }
+
                 float text_width, text_height;
                 spark_graphics_text_get_scaled_size(button->text_texture, &text_width, &text_height);
 
-                float image_aspect = spark_graphics_image_get_aspect_ratio(button->image);
-                float max_image_height = scaled_height * 0.6f;
-                float image_width = max_image_height * image_aspect;
-                float image_height = max_image_height;
-
                 float padding = theme->spacing_unit * spark_ui_scale_x(1.0f);
-                float image_x = scaled_x + padding;
-                float image_y = scaled_y + (scaled_height - image_height) / 2;
+                
+                // Calculate image size (using 60% of remaining height after text and padding)
+                float image_area_height = scaled_height - text_height - padding;
+                float max_image_height = image_area_height * 0.6f;
+                
+                float image_aspect = spark_graphics_image_get_aspect_ratio(button->image);
+                float image_height = max_image_height;
+                float image_width = image_height * image_aspect;
+                
+                if (image_width > scaled_width * 0.8f) {
+                    image_width = scaled_width * 0.8f;
+                    image_height = image_width / image_aspect;
+                }
 
+                // Position image at top portion
+                float image_x = scaled_x + (scaled_width - image_width) / 2;
+                float image_y = scaled_y + (image_area_height - image_height) / 2;
+
+                // Position text below image
+                float text_x = scaled_x + (scaled_width - text_width) / 2;
+                float text_y = scaled_y + image_area_height + padding;
+
+                // Set colors
                 spark_graphics_text_set_color(button->text_texture,
                     text_color.r / 255.0f,
                     text_color.g / 255.0f,
@@ -225,10 +269,8 @@ void spark_ui_button_draw(SparkButton* button) {
                     text_color.b / 255.0f,
                     text_color.a / 255.0f);
 
+                // Draw image and text
                 spark_graphics_image_draw(button->image, image_x, image_y, image_width, image_height);
-
-                float text_x = image_x + image_width + padding;
-                float text_y = scaled_y + (scaled_height - text_height) / 2;
                 spark_graphics_text_draw(button->text_texture, text_x, text_y);
             }
             break;
@@ -237,7 +279,6 @@ void spark_ui_button_draw(SparkButton* button) {
     // Restore render state
     SDL_SetRenderDrawBlendMode(spark.renderer, prev_blend);
 }
-
 void spark_ui_button_update(SparkButton* button) {
     float mx, my;
     spark_ui_get_mouse_position(&mx, &my);

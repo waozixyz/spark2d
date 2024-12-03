@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <math.h>
 #include <SDL3_ttf/SDL_ttf.h>
 
 // Define a simple 8x8 bitmap font
@@ -196,9 +197,7 @@ static const unsigned char default_font_data[] = {
 #define FONT_HEIGHT 8
 #define FIRST_CHAR 32
 #define NUM_CHARS 91 
-
 SparkFont* spark_font_new(const char* filename, int size) {
-    // Check if TTF is initialized first
     if (!TTF_WasInit()) {
         if (TTF_Init() != 0) {
             fprintf(stderr, "Failed to initialize SDL_ttf: %s\n", SDL_GetError());
@@ -206,27 +205,71 @@ SparkFont* spark_font_new(const char* filename, int size) {
         }
     }
     
-    // Allocate font structure first
     SparkFont* font = malloc(sizeof(SparkFont));
     if (!font) {
         fprintf(stderr, "Failed to allocate memory for font\n");
         return NULL;
     }
     
-    // Initialize basic members
     font->type = SPARK_FONT_TYPE_TTF;
     font->scale = 1.0f;
-    font->renderer = NULL; // Will be set by graphics system
+    font->size = size;
+    font->renderer = NULL;
+    font->filename = filename ? strdup(filename) : NULL;
     
-    // Try to load the TTF font
-    font->ttf = TTF_OpenFont(filename, size);
-    if (!font->ttf) {
-        fprintf(stderr, "Failed to load font %s: %s\n", filename, SDL_GetError());
-        free(font);
-        return NULL;
+    if (filename) {
+        font->ttf = TTF_OpenFont(filename, size);
+        if (!font->ttf) {
+            fprintf(stderr, "Failed to load font %s: %s\n", filename, SDL_GetError());
+            free(font->filename);
+            free(font);
+            return NULL;
+        }
     }
     
     return font;
+}
+
+bool spark_font_update_size(SparkFont* font, float new_size) {
+    if (!font) return false;
+    
+    switch (font->type) {
+        case SPARK_FONT_TYPE_TTF:
+            if (!font->ttf || !font->filename) return false;
+            
+            if (fabs(font->size - new_size) <= 0.1f) {
+                return true;  // No significant change
+            }
+            
+            TTF_Font* new_ttf = TTF_OpenFont(font->filename, (int)new_size);
+            if (!new_ttf) return false;
+            
+            TTF_CloseFont(font->ttf);
+            font->ttf = new_ttf;
+            font->size = (int)new_size;
+            break;
+            
+        case SPARK_FONT_TYPE_BITMAP:
+            font->scale = new_size / font->bitmap.base_size;
+            break;
+            
+        default:
+            return false;
+    }
+    
+    return true;
+}
+
+void spark_font_free(SparkFont* font) {
+    if (font) {
+        if (font->type == SPARK_FONT_TYPE_TTF) {
+            TTF_CloseFont(font->ttf);
+        }
+        if (font->filename) {
+            free(font->filename);
+        }
+        free(font);
+    }
 }
 
 SparkFont* spark_font_new_default(SDL_Renderer* renderer) {
@@ -296,16 +339,6 @@ void spark_font_get_text_size(SparkFont* font, const char* text, float* width, f
     }
 }
 
-void spark_font_free(SparkFont* font) {
-    if (font) {
-        if (font->type == SPARK_FONT_TYPE_TTF) {
-            TTF_CloseFont(font->ttf);
-        } else {
-
-        }
-        free(font);
-    }
-}
 
 SparkFont* spark_font_new_bitmap_data(const unsigned char* bitmap_data, int char_width, int char_height) {
     SparkFont* font = malloc(sizeof(SparkFont));

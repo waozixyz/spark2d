@@ -18,6 +18,8 @@ typedef struct SparkFont {
     SparkFontType type;
     SDL_Renderer* renderer;
     float scale;
+    int size;
+    char* filename;  // Add this field
     union {
         TTF_Font* ttf;
         struct {
@@ -48,6 +50,7 @@ void spark_font_get_text_size(SparkFont* font, const char* text, float* width, f
 // Scale management
 void spark_font_set_scale(SparkFont* font, float scale);
 float spark_font_get_scale(SparkFont* font);
+bool spark_font_update_size(SparkFont* font, float new_size);
 
 // Default font
 SparkFont* spark_font_get_default(SDL_Renderer* renderer);
