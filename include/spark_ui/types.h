@@ -46,6 +46,7 @@ typedef struct SparkButton {
     bool has_custom_color;
     float corner_radius;
     float scale;
+    bool is_tab;
 } SparkButton;
 
 

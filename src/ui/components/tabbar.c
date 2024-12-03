@@ -22,6 +22,7 @@ static void tab_button_callback(void* user_data) {
 }
 
 static void add_tab_base(SparkTabBar* tabbar, SparkButton* button) {
+    button->is_tab = true;
     if (tabbar->tab_count >= tabbar->capacity) {
         int new_capacity = tabbar->capacity * 2;
         SparkTab* new_tabs = realloc(tabbar->tabs, sizeof(SparkTab) * new_capacity);

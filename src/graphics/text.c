@@ -48,17 +48,7 @@ void spark_graphics_text_draw(SparkText* text, float x, float y) {
     
     printf("Font type: %d, text content: %s\n", text->font->type, text->text);
     if (text->font->type == SPARK_FONT_TYPE_TTF) {
-
-        printf("TTF font pointer: %p\n", (void*)text->font->ttf);
-        printf("TTF font renderer: %p\n", (void*)text->font->renderer);
-        printf("Text color: r=%d g=%d b=%d a=%d\n", text->color.r, text->color.g, text->color.b, text->color.a);
-        printf("Text pointer: %p\n", (void*)text);
-        if (!text) return;
-        printf("Texture pointer: %p\n", (void*)text->texture); 
         if (!text->texture) {
-            printf("Creating new texture\n");
-            printf("TTF font ptr: %p\n", text->font->ttf);
-            printf("Creating text surface\n");
             SDL_Surface* surface = TTF_RenderText_Solid(text->font->ttf, text->text, strlen(text->text), text->color);
 
             if (!surface) {
@@ -70,16 +60,16 @@ void spark_graphics_text_draw(SparkText* text, float x, float y) {
             text->width = surface->w;
             text->height = surface->h;
             SDL_DestroySurface(surface);
-        }
-        
-        if (text->texture) {
-            SDL_FRect dest = {
-                .x = x,
-                .y = y,
-                .w = text->width * text->font->scale,
-                .h = text->height * text->font->scale
-            };
-            SDL_RenderTexture(spark.renderer, text->texture, NULL, &dest);
+        } else {
+            SDL_FRect dest = {.x = x, .y = y, 
+                            .w = text->width * text->font->scale,
+                            .h = text->height * text->font->scale};
+            int result = SDL_RenderTexture(spark.renderer, text->texture, NULL, &dest);
+            if (result < 0) {
+                SDL_DestroyTexture(text->texture);
+                text->texture = NULL;
+                return;
+            }
         }
     } else {
         printf("no texture");

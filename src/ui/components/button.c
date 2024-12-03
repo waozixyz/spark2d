@@ -95,190 +95,204 @@ void spark_ui_button_set_font(SparkButton* button, SparkFont* font) {
 static bool point_in_rect(float px, float py, float x, float y, float w, float h) {
     return px >= x && px <= x + w && py >= y && py <= y + h;
 }
-void spark_ui_button_draw(SparkButton* button) {
-    const SparkTheme* theme = spark_theme_get_current();
-    if (!theme) {
-        theme = spark_theme_get_default();
-    }
 
-    float scaled_x = spark_ui_scale_x(button->x);
-    float scaled_y = spark_ui_scale_y(button->y);
-    float scaled_width = spark_ui_scale_x(button->width);
-    float scaled_height = spark_ui_scale_y(button->height);
 
-    // Get base color and handle tab coloring
-    SDL_Color base_color = theme->primary;
-    SDL_Color text_color = theme->on_primary;
-
-    SparkTab* parent_tab = NULL;
-    if (button->user_data && ((SparkTab*)button->user_data)->parent_tabbar) {
-        parent_tab = (SparkTab*)button->user_data;
-        base_color = theme->surface;
-        text_color = theme->on_surface;
-
-        if (parent_tab->parent_tabbar->active_tab == parent_tab - parent_tab->parent_tabbar->tabs) {
-            text_color = theme->primary;
-        }
-    }
-
-    // Save current render state
-    SDL_BlendMode prev_blend;
-    SDL_GetRenderDrawBlendMode(spark.renderer, &prev_blend);
-    SDL_SetRenderDrawBlendMode(spark.renderer, SDL_BLENDMODE_BLEND);
-
-    // 1. Draw elevation shadows for non-tab buttons
-    if (!parent_tab) {
-        uint8_t elevation = button->pressed ? theme->elevation_levels[6] :
-                           button->hovered ? theme->elevation_levels[4] :
-                           theme->elevation_levels[2];
-        spark_graphics_apply_elevation(scaled_x, scaled_y, scaled_width, scaled_height, elevation);
-    }
-
-    // 2. Draw button background with state overlays
-    SDL_Color render_color = base_color;
-    if (button->pressed) {
-        render_color = spark_theme_mix_colors(base_color, theme->pressed_overlay, 0.10f);
-    } else if (button->hovered) {
-        render_color = spark_theme_mix_colors(base_color, theme->hover_overlay, 0.08f);
-    }
-
-    spark_graphics_set_color_with_alpha(
-        render_color.r / 255.0f,
-        render_color.g / 255.0f,
-        render_color.b / 255.0f,
-        parent_tab ? 0.0f : 1.0f
-    );
-
-    spark_graphics_rounded_rectangle("fill", scaled_x, scaled_y,
-                                   scaled_width, scaled_height,
-                                   theme->border_radius);
-
-    // 3. Draw content (image/text) with proper blending
-    switch (button->type) {
-        case SPARK_BUTTON_TEXT:
-            if (button->text_texture) {
-                float scale_x, scale_y;
-                spark_window_get_scale(&scale_x, &scale_y);
-                float base_font_size = 16.0f;
-                float scaled_size = base_font_size * fmin(scale_x, scale_y);
-                
-                // Update font size based on type
-                if (button->font->type == SPARK_FONT_TYPE_TTF) {
-                    if (spark_font_update_size(button->font, scaled_size)) {
-                        spark_graphics_text_free(button->text_texture);
-                        button->text_texture = spark_graphics_new_text(button->font, button->text);
-                    }
-                } else {
-                    spark_font_set_scale(button->font, scaled_size / base_font_size);
-                }
-
-                float text_width, text_height;
-                spark_graphics_text_get_scaled_size(button->text_texture, &text_width, &text_height);
-                float text_x = scaled_x + (scaled_width - text_width) / 2;
-                float text_y = scaled_y + (scaled_height - text_height) / 2;
-
-                spark_graphics_text_set_color(button->text_texture,
-                    text_color.r / 255.0f,
-                    text_color.g / 255.0f,
-                    text_color.b / 255.0f,
-                    text_color.a / 255.0f);
-
-                spark_graphics_text_draw(button->text_texture, text_x, text_y);
-            }
-            break;
-
-        case SPARK_BUTTON_IMAGE:
-            if (button->image && button->image->texture) {
-                float image_aspect = spark_graphics_image_get_aspect_ratio(button->image);
-                float max_size = fmin(scaled_width, scaled_height) * 0.6f;
-                float image_width = max_size;
-                float image_height = max_size;
-
-                if (image_aspect > 1.0f) {
-                    image_height = image_width / image_aspect;
-                } else {
-                    image_width = image_height * image_aspect;
-                }
-
-                float image_x = scaled_x + (scaled_width - image_width) / 2;
-                float image_y = scaled_y + (scaled_height - image_height) / 2;
-
-                spark_graphics_image_set_color(button->image,
-                    text_color.r / 255.0f,
-                    text_color.g / 255.0f,
-                    text_color.b / 255.0f,
-                    text_color.a / 255.0f);
-
-                spark_graphics_image_draw(button->image, image_x, image_y, image_width, image_height);
-            }
-            break;
-
-        case SPARK_BUTTON_TEXT_AND_IMAGE:
-            if (button->image && button->text_texture) {
-                // Update font size like in TEXT case
-                float scale_x, scale_y;
-                spark_window_get_scale(&scale_x, &scale_y);
-                float base_font_size = 16.0f;
-                float scaled_size = base_font_size * fmin(scale_x, scale_y);
-                
-                if (button->font->type == SPARK_FONT_TYPE_TTF) {
-                    if (spark_font_update_size(button->font, scaled_size)) {
-                        spark_graphics_text_free(button->text_texture);
-                        button->text_texture = spark_graphics_new_text(button->font, button->text);
-                    }
-                } else {
-                    spark_font_set_scale(button->font, scaled_size / base_font_size);
-                }
-
-                float text_width, text_height;
-                spark_graphics_text_get_scaled_size(button->text_texture, &text_width, &text_height);
-
-                float padding = theme->spacing_unit * spark_ui_scale_x(1.0f);
-                
-                // Calculate image size (using 60% of remaining height after text and padding)
-                float image_area_height = scaled_height - text_height - padding;
-                float max_image_height = image_area_height * 0.6f;
-                
-                float image_aspect = spark_graphics_image_get_aspect_ratio(button->image);
-                float image_height = max_image_height;
-                float image_width = image_height * image_aspect;
-                
-                if (image_width > scaled_width * 0.8f) {
-                    image_width = scaled_width * 0.8f;
-                    image_height = image_width / image_aspect;
-                }
-
-                // Position image at top portion
-                float image_x = scaled_x + (scaled_width - image_width) / 2;
-                float image_y = scaled_y + (image_area_height - image_height) / 2;
-
-                // Position text below image
-                float text_x = scaled_x + (scaled_width - text_width) / 2;
-                float text_y = scaled_y + image_area_height + padding;
-
-                // Set colors
-                spark_graphics_text_set_color(button->text_texture,
-                    text_color.r / 255.0f,
-                    text_color.g / 255.0f,
-                    text_color.b / 255.0f,
-                    text_color.a / 255.0f);
-
-                spark_graphics_image_set_color(button->image,
-                    text_color.r / 255.0f,
-                    text_color.g / 255.0f,
-                    text_color.b / 255.0f,
-                    text_color.a / 255.0f);
-
-                // Draw image and text
-                spark_graphics_image_draw(button->image, image_x, image_y, image_width, image_height);
-                spark_graphics_text_draw(button->text_texture, text_x, text_y);
-            }
-            break;
-    }
-
-    // Restore render state
-    SDL_SetRenderDrawBlendMode(spark.renderer, prev_blend);
+static void update_button_font_size(SparkButton* button, float scaled_size) {
+   if (button->font->type == SPARK_FONT_TYPE_TTF) {
+       if (spark_font_update_size(button->font, scaled_size)) {
+           spark_graphics_text_free(button->text_texture);
+           button->text_texture = spark_graphics_new_text(button->font, button->text);
+       }
+   } else {
+       spark_font_set_scale(button->font, scaled_size / 16.0f);
+   }
 }
+
+static void draw_button_background(SparkButton* button, const SparkTheme* theme,
+                                 float scaled_x, float scaled_y,
+                                 float scaled_width, float scaled_height,
+                                 SDL_Color base_color, bool is_tab) {
+
+    // Check theme struct
+    if (!theme) {
+        printf("Error: Null theme in draw_button_background\n");
+        return;
+    }
+
+    // Check renderer
+    if (!spark.renderer) {
+        printf("Error: Null renderer\n");
+        return;
+    }
+
+
+   if (!is_tab) {
+       uint8_t elevation = button->pressed ? theme->elevation_levels[6] :
+                          button->hovered ? theme->elevation_levels[4] :
+                          theme->elevation_levels[2];
+       spark_graphics_apply_elevation(scaled_x, scaled_y, scaled_width, scaled_height, elevation);
+   }
+
+   SDL_Color render_color = base_color;
+   if (button->pressed) {
+       render_color = spark_theme_mix_colors(base_color, theme->pressed_overlay, 0.10f);
+   } else if (button->hovered) {
+       render_color = spark_theme_mix_colors(base_color, theme->hover_overlay, 0.08f);
+   }
+
+   spark_graphics_set_color_with_alpha(
+       render_color.r / 255.0f, 
+       render_color.g / 255.0f,
+       render_color.b / 255.0f,
+       is_tab ? 0.0f : 1.0f
+   );
+
+   spark_graphics_rounded_rectangle("fill", scaled_x, scaled_y,
+                                  scaled_width, scaled_height, 
+                                  theme->border_radius);
+}
+
+
+static void draw_button_text(SparkButton* button, float scaled_x, float scaled_y,
+                          float scaled_width, float scaled_height,
+                          SDL_Color text_color) {
+          
+   float scale_x, scale_y;
+   spark_window_get_scale(&scale_x, &scale_y);
+   float scaled_size = 16.0f * fmin(scale_x, scale_y);
+   
+   update_button_font_size(button, scaled_size);
+
+   float text_width, text_height;
+   spark_graphics_text_get_scaled_size(button->text_texture, &text_width, &text_height);
+   
+   float text_x = scaled_x + (scaled_width - text_width) / 2;
+   float text_y = scaled_y + (scaled_height - text_height) / 2;
+
+   spark_graphics_text_set_color(button->text_texture,
+       text_color.r / 255.0f,
+       text_color.g / 255.0f, 
+       text_color.b / 255.0f,
+       text_color.a / 255.0f);
+
+   spark_graphics_text_draw(button->text_texture, text_x, text_y);
+}
+
+void spark_ui_button_draw(SparkButton* button) {
+   if (!button) return;
+
+   const SparkTheme* theme = spark_theme_get_current();
+   if (!theme) theme = spark_theme_get_default();
+   if (!theme) return;
+
+   float scaled_x = spark_ui_scale_x(button->x);
+   float scaled_y = spark_ui_scale_y(button->y);
+   float scaled_width = spark_ui_scale_x(button->width);
+   float scaled_height = spark_ui_scale_y(button->height);
+
+   SDL_Color base_color = theme->primary;
+   SDL_Color text_color = theme->on_primary;
+
+   // Handle tab button coloring
+   if (button->is_tab) {
+       base_color = theme->surface; 
+       text_color = theme->on_surface;
+
+       SparkTab* tab = (SparkTab*)button->user_data;
+       if (tab->parent_tabbar->active_tab == tab - tab->parent_tabbar->tabs) {
+           text_color = theme->primary;
+       }
+   }
+
+   // Set blend mode
+   SDL_BlendMode prev_blend;
+   SDL_GetRenderDrawBlendMode(spark.renderer, &prev_blend);
+   SDL_SetRenderDrawBlendMode(spark.renderer, SDL_BLENDMODE_BLEND);
+
+   // Draw background
+   draw_button_background(button, theme, scaled_x, scaled_y, scaled_width, scaled_height,
+                        base_color, button->is_tab);
+
+   // Draw content
+   switch (button->type) {
+       case SPARK_BUTTON_TEXT:
+           if (button->text_texture) {
+               draw_button_text(button, scaled_x, scaled_y, scaled_width, scaled_height, text_color);
+           }
+           break;
+
+       case SPARK_BUTTON_IMAGE:
+           if (button->image && button->image->texture) {
+               float image_aspect = spark_graphics_image_get_aspect_ratio(button->image);
+               float max_size = fmin(scaled_width, scaled_height) * 0.6f;
+               float image_width = max_size;
+               float image_height = max_size;
+
+               if (image_aspect > 1.0f) {
+                   image_height = image_width / image_aspect;
+               } else {
+                   image_width = image_height * image_aspect;
+               }
+
+               float image_x = scaled_x + (scaled_width - image_width) / 2;
+               float image_y = scaled_y + (scaled_height - image_height) / 2;
+
+               spark_graphics_image_set_color(button->image,
+                   text_color.r / 255.0f,
+                   text_color.g / 255.0f,
+                   text_color.b / 255.0f,
+                   text_color.a / 255.0f);
+
+               spark_graphics_image_draw(button->image, image_x, image_y, image_width, image_height);
+           }
+           break;
+
+       case SPARK_BUTTON_TEXT_AND_IMAGE:
+           if (button->image && button->text_texture) {
+               float text_width, text_height;
+               spark_graphics_text_get_scaled_size(button->text_texture, &text_width, &text_height);
+
+               float padding = theme->spacing_unit * spark_ui_scale_x(1.0f);
+               float image_area_height = scaled_height - text_height - padding;
+               float max_image_height = image_area_height * 0.6f;
+               
+               float image_aspect = spark_graphics_image_get_aspect_ratio(button->image);
+               float image_height = max_image_height;
+               float image_width = image_height * image_aspect;
+               
+               if (image_width > scaled_width * 0.8f) {
+                   image_width = scaled_width * 0.8f;
+                   image_height = image_width / image_aspect;
+               }
+
+               float image_x = scaled_x + (scaled_width - image_width) / 2;
+               float image_y = scaled_y + (image_area_height - image_height) / 2;
+               float text_x = scaled_x + (scaled_width - text_width) / 2;
+               float text_y = scaled_y + image_area_height + padding;
+
+               spark_graphics_text_set_color(button->text_texture,
+                   text_color.r / 255.0f,
+                   text_color.g / 255.0f,
+                   text_color.b / 255.0f,
+                   text_color.a / 255.0f);
+
+               spark_graphics_image_set_color(button->image,
+                   text_color.r / 255.0f,
+                   text_color.g / 255.0f,
+                   text_color.b / 255.0f,
+                   text_color.a / 255.0f);
+
+               spark_graphics_image_draw(button->image, image_x, image_y, image_width, image_height);
+               spark_graphics_text_draw(button->text_texture, text_x, text_y);
+           }
+           break;
+   }
+
+   SDL_SetRenderDrawBlendMode(spark.renderer, prev_blend);
+}
+
+
+
 void spark_ui_button_update(SparkButton* button) {
     float mx, my;
     spark_ui_get_mouse_position(&mx, &my);
