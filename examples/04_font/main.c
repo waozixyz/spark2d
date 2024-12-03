@@ -22,8 +22,6 @@ void load(void) {
         }
     }
     
-    // Set as current font
-    spark_graphics_set_font(custom_font);
     
     // Create text objects once
     centered_text = spark_graphics_new_text(custom_font, "Hello Custom Font! ");

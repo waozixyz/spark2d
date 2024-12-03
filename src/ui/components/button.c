@@ -22,7 +22,7 @@ static SparkButton* create_button_base(float x, float y, float width, float heig
     button->user_data = NULL;
     button->hovered = false;
     button->pressed = false;
-    button->font = spark_font_get_default(spark_graphics_get_renderer());
+    button->font = spark_font_new_default();
 
     return button;
 }

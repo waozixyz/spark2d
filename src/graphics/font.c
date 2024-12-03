@@ -9,7 +9,7 @@ static SparkFont* current_font = NULL;
 
 SparkFont* spark_graphics_new_font(const char* filename, float size) {
     if (!filename) {
-        return spark_font_get_default(spark.renderer);
+        return spark_font_new_default();
     }
 
     SparkFont* font = spark_font_new(filename, (int)size);
@@ -23,14 +23,14 @@ SparkFont* spark_graphics_new_font(const char* filename, float size) {
 
 void spark_graphics_set_font(SparkFont* font) {
     if (!font) {
-        font = spark_font_get_default(spark.renderer);
+        font = spark_font_new_default();
     }
     current_font = font;
 }
 
 SparkFont* spark_graphics_get_font(void) {
     if (!current_font) {
-        current_font = spark_font_get_default(spark.renderer);
+        current_font = spark_font_new_default();
     }
     return current_font;
 }

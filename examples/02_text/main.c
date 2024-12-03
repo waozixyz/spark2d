@@ -12,7 +12,7 @@ void load(void) {
     }
 
     // Create default font and set it as current
-    font = spark_font_new_default(renderer);
+    font = spark_font_new_default();
     if (!font) {
         fprintf(stderr, "Failed to create default font\n");
         return;

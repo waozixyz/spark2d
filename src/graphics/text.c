@@ -39,11 +39,28 @@ SparkText* spark_graphics_new_text(SparkFont* font, const char* text) {
 
 
 void spark_graphics_text_draw(SparkText* text, float x, float y) {
-    if (!text || !text->font) return;
+
+    printf("Text draw called with: text=%p, x=%f, y=%f\n", (void*)text, x, y);
+    if (!text || !text->font) {
+        printf("Text or font is NULL\n");
+        return;
+    }
     
+    printf("Font type: %d, text content: %s\n", text->font->type, text->text);
     if (text->font->type == SPARK_FONT_TYPE_TTF) {
+
+        printf("TTF font pointer: %p\n", (void*)text->font->ttf);
+        printf("TTF font renderer: %p\n", (void*)text->font->renderer);
+        printf("Text color: r=%d g=%d b=%d a=%d\n", text->color.r, text->color.g, text->color.b, text->color.a);
+        printf("Text pointer: %p\n", (void*)text);
+        if (!text) return;
+        printf("Texture pointer: %p\n", (void*)text->texture); 
         if (!text->texture) {
+            printf("Creating new texture\n");
+            printf("TTF font ptr: %p\n", text->font->ttf);
+            printf("Creating text surface\n");
             SDL_Surface* surface = TTF_RenderText_Solid(text->font->ttf, text->text, strlen(text->text), text->color);
+
             if (!surface) {
                 fprintf(stderr, "Failed to render text: %s\n", SDL_GetError());
                 return;
@@ -65,6 +82,7 @@ void spark_graphics_text_draw(SparkText* text, float x, float y) {
             SDL_RenderTexture(spark.renderer, text->texture, NULL, &dest);
         }
     } else {
+        printf("no texture");
         uint8_t r, g, b, a;
         SDL_GetRenderDrawColor(spark.renderer, &r, &g, &b, &a);
         

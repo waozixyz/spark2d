@@ -47,7 +47,7 @@ SparkDropdown* spark_ui_dropdown_new(float x, float y, float width, float height
     
     dropdown->item_count = 0;
     dropdown->selected_index = -1;
-    dropdown->font = spark_font_get_default(spark_graphics_get_renderer());
+    dropdown->font = spark_font_new_default();
     dropdown->callback = NULL;
     dropdown->user_data = NULL;
     

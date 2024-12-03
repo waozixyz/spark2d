@@ -3,15 +3,11 @@
 
 #include <SDL3_ttf/SDL_ttf.h>
 #include <SDL3/SDL.h>
-
-#ifdef __EMSCRIPTEN__
-#include <emscripten.h>
-#endif
+#include <stdbool.h>
 
 typedef enum {
     SPARK_FONT_TYPE_TTF,
-    SPARK_FONT_TYPE_BITMAP,
-    SPARK_FONT_TYPE_IMAGE
+    SPARK_FONT_TYPE_BITMAP
 } SparkFontType;
 
 typedef struct SparkFont {
@@ -19,7 +15,7 @@ typedef struct SparkFont {
     SDL_Renderer* renderer;
     float scale;
     int size;
-    char* filename;  // Add this field
+    char* filename;
     union {
         TTF_Font* ttf;
         struct {
@@ -31,28 +27,23 @@ typedef struct SparkFont {
     };
 } SparkFont;
 
-// Font creation and management
+// Creation/destruction
 SparkFont* spark_font_new(const char* filename, int size);
-SparkFont* spark_font_new_default(SDL_Renderer* renderer);
+SparkFont* spark_font_new_default(void);
 SparkFont* spark_font_new_bitmap_data(const unsigned char* bitmap_data, int char_width, int char_height);
 void spark_font_free(SparkFont* font);
 
-// Font metrics
+// Metrics
 float spark_font_get_height(SparkFont* font);
-float spark_font_get_width(SparkFont* font);
-float spark_font_get_ascent(SparkFont* font);
-float spark_font_get_descent(SparkFont* font);
-float spark_font_get_baseline(SparkFont* font);
+float spark_font_get_width(SparkFont* font); 
 float spark_font_get_scaled_width(SparkFont* font);
 float spark_font_get_scaled_height(SparkFont* font);
 void spark_font_get_text_size(SparkFont* font, const char* text, float* width, float* height);
+void spark_font_get_text_bounds(SparkFont* font, const char* text, float x, float y, float* min_x, float* min_y, float* max_x, float* max_y);
 
-// Scale management
+// Properties
 void spark_font_set_scale(SparkFont* font, float scale);
 float spark_font_get_scale(SparkFont* font);
 bool spark_font_update_size(SparkFont* font, float new_size);
-
-// Default font
-SparkFont* spark_font_get_default(SDL_Renderer* renderer);
 
 #endif

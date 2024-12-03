@@ -194,92 +194,114 @@ static const unsigned char default_font_data[] = {
 };
 
 #define FONT_WIDTH 8
-#define FONT_HEIGHT 8
+#define FONT_HEIGHT 8 
 #define FIRST_CHAR 32
-#define NUM_CHARS 91 
+#define NUM_CHARS 91
+
+static bool ensure_ttf_initialized(void) {
+  if (!TTF_WasInit() && TTF_Init() != 0) {
+      fprintf(stderr, "TTF_Init failed: %s\n", SDL_GetError()); 
+      return false;
+  }
+  return true;
+}
+
+static SparkFont* create_font_base(void) {
+  SparkFont* font = malloc(sizeof(SparkFont));
+  if (!font) {
+      fprintf(stderr, "Failed to allocate font memory\n");
+      return NULL;
+  }
+  font->scale = 1.0f;
+  font->renderer = NULL;
+  return font;
+}
+
+static bool setup_ttf_font(SparkFont* font, const char* filename, int size) {
+  font->ttf = TTF_OpenFont(filename, size);
+  if (!font->ttf) {
+      fprintf(stderr, "Failed to load font %s: %s\n", filename, SDL_GetError());
+      return false;
+  }
+  return true;
+}
+
 SparkFont* spark_font_new(const char* filename, int size) {
-    if (!TTF_WasInit()) {
-        if (TTF_Init() != 0) {
-            fprintf(stderr, "Failed to initialize SDL_ttf: %s\n", SDL_GetError());
-            return NULL;
-        }
-    }
-    
-    SparkFont* font = malloc(sizeof(SparkFont));
-    if (!font) {
-        fprintf(stderr, "Failed to allocate memory for font\n");
-        return NULL;
-    }
-    
-    font->type = SPARK_FONT_TYPE_TTF;
-    font->scale = 1.0f;
-    font->size = size;
-    font->renderer = NULL;
-    font->filename = filename ? strdup(filename) : NULL;
-    
-    if (filename) {
-        font->ttf = TTF_OpenFont(filename, size);
-        if (!font->ttf) {
-            fprintf(stderr, "Failed to load font %s: %s\n", filename, SDL_GetError());
-            free(font->filename);
-            free(font);
-            return NULL;
-        }
-    }
-    
-    return font;
+  if (!ensure_ttf_initialized()) return NULL;
+  
+  SparkFont* font = create_font_base();
+  if (!font) return NULL;
+  
+  font->type = SPARK_FONT_TYPE_TTF;
+  font->size = size;
+  font->filename = strdup(filename);
+  
+  if (!setup_ttf_font(font, filename, size)) {
+      free(font->filename);
+      free(font);
+      return NULL;
+  }
+  
+  font->renderer = spark.renderer;
+  if (!font->renderer) {
+      TTF_CloseFont(font->ttf);
+      free(font->filename); 
+      free(font);
+      return NULL;
+  }
+  
+  return font;
 }
 
 bool spark_font_update_size(SparkFont* font, float new_size) {
-    if (!font) return false;
-    
-    switch (font->type) {
-        case SPARK_FONT_TYPE_TTF:
-            if (!font->ttf || !font->filename) return false;
-            
-            if (fabs(font->size - new_size) <= 0.1f) {
-                return true;  // No significant change
-            }
-            
-            TTF_Font* new_ttf = TTF_OpenFont(font->filename, (int)new_size);
-            if (!new_ttf) return false;
-            
-            TTF_CloseFont(font->ttf);
-            font->ttf = new_ttf;
-            font->size = (int)new_size;
-            break;
-            
-        case SPARK_FONT_TYPE_BITMAP:
-            font->scale = new_size / font->bitmap.base_size;
-            break;
-            
-        default:
-            return false;
-    }
-    
-    return true;
+   if (!font) return false;
+   
+   switch (font->type) {
+       case SPARK_FONT_TYPE_TTF:
+           if (!font->ttf || !font->filename) return false;
+           
+           if (fabs(font->size - new_size) <= 0.1f) {
+               return true;
+           }
+           
+           TTF_Font* new_ttf = TTF_OpenFont(font->filename, (int)new_size);
+           if (!new_ttf) return false;
+           
+           TTF_CloseFont(font->ttf);
+           font->ttf = new_ttf;
+           font->size = (int)new_size;
+           break;
+           
+       case SPARK_FONT_TYPE_BITMAP:
+           font->scale = new_size / font->bitmap.base_size;
+           break;
+           
+       default:
+           return false;
+   }
+   
+   return true;
 }
 
 void spark_font_free(SparkFont* font) {
-    if (font) {
-        if (font->type == SPARK_FONT_TYPE_TTF) {
-            TTF_CloseFont(font->ttf);
-        }
-        if (font->filename) {
-            free(font->filename);
-        }
-        free(font);
-    }
+   if (font) {
+       if (font->type == SPARK_FONT_TYPE_TTF) {
+           TTF_CloseFont(font->ttf);
+       }
+       if (font->filename) {
+           free(font->filename);
+       }
+       free(font);
+   }
 }
 
-SparkFont* spark_font_new_default(SDL_Renderer* renderer) {
+SparkFont* spark_font_new_default(void) {
     SparkFont* font = malloc(sizeof(SparkFont));
     if (!font) return NULL;
-
-    font->type = SPARK_FONT_TYPE_BITMAP;
-    font->renderer = renderer;
-    font->scale = 1.0f;
     
+    font->type = SPARK_FONT_TYPE_BITMAP;
+    font->renderer = spark.renderer;
+    font->scale = 1.0f;
     font->bitmap.char_width = FONT_WIDTH;
     font->bitmap.char_height = FONT_HEIGHT;
     font->bitmap.base_size = FONT_HEIGHT;
@@ -288,81 +310,68 @@ SparkFont* spark_font_new_default(SDL_Renderer* renderer) {
     return font;
 }
 
-
 void spark_font_set_scale(SparkFont* font, float scale) {
-    font->scale = scale;
+   font->scale = scale;
 }
 
 float spark_font_get_scale(SparkFont* font) {
-    return font->scale;
+   return font->scale;
 }
 
 float spark_font_get_height(SparkFont* font) {
-    if (font->type == SPARK_FONT_TYPE_TTF) {
-        return TTF_GetFontHeight(font->ttf);
-    }
-    return font->bitmap.char_height;
+   if (font->type == SPARK_FONT_TYPE_TTF) {
+       return TTF_GetFontHeight(font->ttf);
+   }
+   return font->bitmap.char_height;
 }
 
 float spark_font_get_width(SparkFont* font) {
-    if (font->type == SPARK_FONT_TYPE_BITMAP) {
-        return font->bitmap.char_width;
-    }
-    return TTF_GetFontHeight(font->ttf) / 2;
+   if (font->type == SPARK_FONT_TYPE_BITMAP) {
+       return font->bitmap.char_width;
+   }
+   return TTF_GetFontHeight(font->ttf) / 2;
 }
 
 float spark_font_get_scaled_height(SparkFont* font) {
-    return spark_font_get_height(font) * font->scale;
+   return spark_font_get_height(font) * font->scale;
 }
 
 float spark_font_get_scaled_width(SparkFont* font) {
-    return spark_font_get_width(font) * font->scale;
+   return spark_font_get_width(font) * font->scale;
 }
 
 void spark_font_get_text_bounds(SparkFont* font, const char* text, float x, float y,
-                              float* min_x, float* min_y, float* max_x, float* max_y) {
-    float w, h;
-    spark_font_get_text_size(font, text, &w, &h);
-    
-    if (min_x) *min_x = x;
-    if (min_y) *min_y = y;
-    if (max_x) *max_x = x + w;
-    if (max_y) *max_y = y + h;
+                             float* min_x, float* min_y, float* max_x, float* max_y) {
+   float w, h;
+   spark_font_get_text_size(font, text, &w, &h);
+   
+   if (min_x) *min_x = x;
+   if (min_y) *min_y = y;
+   if (max_x) *max_x = x + w;
+   if (max_y) *max_y = y + h;
 }
 
 void spark_font_get_text_size(SparkFont* font, const char* text, float* width, float* height) {
-    if (width) {
-        *width = strlen(text) * spark_font_get_scaled_width(font);
-    }
-    if (height) {
-        *height = spark_font_get_scaled_height(font);
-    }
+   if (width) {
+       *width = strlen(text) * spark_font_get_scaled_width(font);
+   }
+   if (height) {
+       *height = spark_font_get_scaled_height(font);
+   }
 }
-
 
 SparkFont* spark_font_new_bitmap_data(const unsigned char* bitmap_data, int char_width, int char_height) {
-    SparkFont* font = malloc(sizeof(SparkFont));
-    if (!font) return NULL;
+   SparkFont* font = malloc(sizeof(SparkFont));
+   if (!font) return NULL;
 
-    font->type = SPARK_FONT_TYPE_BITMAP;
-    font->scale = 1.0f;
-    font->renderer = NULL;  // This should be set after creation
-    
-    font->bitmap.char_width = char_width;
-    font->bitmap.char_height = char_height;
-    font->bitmap.base_size = char_height;
-    font->bitmap.font_data = bitmap_data;
-    
-    return font;
-}
-
-
-static SparkFont* default_font = NULL;
-
-SparkFont* spark_font_get_default(SDL_Renderer* renderer) {
-    if (!default_font) {
-        default_font = spark_font_new_bitmap_data(default_font_data, FONT_WIDTH, FONT_HEIGHT);
-        default_font->renderer = renderer;
-    }
-    return default_font;
+   font->type = SPARK_FONT_TYPE_BITMAP;
+   font->scale = 1.0f;
+   font->renderer = NULL;
+   
+   font->bitmap.char_width = char_width;
+   font->bitmap.char_height = char_height;
+   font->bitmap.base_size = char_height;
+   font->bitmap.font_data = bitmap_data;
+   
+   return font;
 }

@@ -13,7 +13,7 @@ void spark_graphics_init(void) {
 
 void ensure_default_font(void) {
     if (!default_font) {
-        default_font = spark_font_new_default(spark.renderer);
+        default_font = spark_font_new_default();
     }
 }
 
