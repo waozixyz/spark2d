@@ -10,54 +10,16 @@
 #include <emscripten.h>
 #endif
 
+// Configuration constants
+#define TARGET_FPS 60.0
+#define TARGET_FRAME_TIME (1.0 / TARGET_FPS)
+#define DEFAULT_BACKGROUND_COLOR 0, 0, 0, 255
+
+// Global state
 Spark2D spark = {0};
 static bool should_quit = false;
 
-// Add this new function for the main loop
-static void main_loop_iteration(void) {
-    static Uint64 previous = 0;
-    if (previous == 0) {
-        previous = SDL_GetTicks();
-    }
-
-    SDL_Event event;
-    while (SDL_PollEvent(&event)) {
-        if (event.type == SDL_EVENT_QUIT) {
-            should_quit = true;  // Set the quit flag
-            #ifdef __EMSCRIPTEN__
-            emscripten_cancel_main_loop();
-            #endif
-            return;
-        } else if (event.type == SDL_EVENT_WINDOW_RESIZED) {
-            if (spark.window_state.mode == SPARK_WINDOW_MODE_RESPONSIVE) {
-                spark_window_update_scale();
-            }
-        }
-    }
-
-    // Return early if quit was requested
-    if (should_quit) {
-        return;
-    }
-    Uint64 current = SDL_GetTicks();
-    float dt = (current - previous) / 1000.0f;
-    previous = current;
-
-    if (spark.update) {
-        spark.update(dt);
-    }
-
-    SDL_SetRenderDrawColor(spark.renderer, 0, 0, 0, 255);
-    SDL_RenderClear(spark.renderer);
-
-    if (spark.draw) {
-        spark.draw();
-    }
-
-    SDL_RenderPresent(spark.renderer);
-}
-
-bool spark_init(const char* title, int width, int height) {
+static bool init_subsystems(const char* title, int width, int height) {
     if ((int)SDL_Init(SDL_INIT_VIDEO) < 0) {
         fprintf(stderr, "SDL init failed: %s\n", SDL_GetError());
         return false;
@@ -69,7 +31,6 @@ bool spark_init(const char* title, int width, int height) {
         return false;
     }
 
-    // Create window
     spark.window = SDL_CreateWindow(title, width, height, SDL_WINDOW_RESIZABLE);
     if (!spark.window) {
         fprintf(stderr, "Window creation failed: %s\n", SDL_GetError());
@@ -78,7 +39,6 @@ bool spark_init(const char* title, int width, int height) {
         return false;
     }
 
-    // Create renderer
     spark.renderer = SDL_CreateRenderer(spark.window, NULL);
     if (!spark.renderer) {
         fprintf(stderr, "Renderer creation failed: %s\n", SDL_GetError());
@@ -88,22 +48,106 @@ bool spark_init(const char* title, int width, int height) {
         return false;
     }
 
+    return true;
+}
+
+static void process_events(void) {
+    spark_event_pump();
+    
+    SparkEvent event;
+    while (spark_event_poll(&event)) {
+        switch (event.type) {
+            case SPARK_EVENT_QUIT:
+                should_quit = true;
+                #ifdef __EMSCRIPTEN__
+                emscripten_cancel_main_loop();
+                #endif
+                break;
+
+            case SPARK_EVENT_RESIZE:
+                if (spark.window_state.mode == SPARK_WINDOW_MODE_RESPONSIVE) {
+                    spark_window_update_scale();
+                }
+                break;
+        }
+        
+        // Free event data if it exists
+        if (event.data) {
+            free(event.data);
+        }
+    }
+}
+
+static void update_and_render(float dt) {
+    // Update logic
+    if (spark.update) {
+        spark.update(dt);
+    }
+
+    // Clear screen
+    SDL_SetRenderDrawColor(spark.renderer, DEFAULT_BACKGROUND_COLOR);
+    SDL_RenderClear(spark.renderer);
+
+    // Render
+    if (spark.draw) {
+        spark.draw();
+    }
+
+    SDL_RenderPresent(spark.renderer);
+}
+
+static void main_loop_iteration(void) {
+    static Uint64 previous = 0;
+    static Uint64 performance_frequency = 0;
+
+    if (previous == 0) {
+        previous = SDL_GetPerformanceCounter();
+        performance_frequency = SDL_GetPerformanceFrequency();
+    }
+
+    if (should_quit) return;
+
+    // Calculate delta time
+    Uint64 current = SDL_GetPerformanceCounter();
+    float dt = (float)((current - previous) * 1000.0 / performance_frequency) / 1000.0f;
+    previous = current;
+
+    process_events();
+    update_and_render(dt);
+
+    // Frame limiting
+    if (dt < TARGET_FRAME_TIME) {
+        SDL_Delay((Uint32)((TARGET_FRAME_TIME - dt) * 1000.0));
+    }
+}
+
+bool spark_init(const char* title, int width, int height) {
+    if (width <= 0 || height <= 0 || !title) {
+        fprintf(stderr, "Invalid parameters for spark_init\n");
+        return false;
+    }
+
+    if (!init_subsystems(title, width, height)) {
+        return false;
+    }
+
+    spark_event_init();
     spark_graphics_init();
 
-    SDL_SetRenderDrawColor(spark.renderer, 0, 0, 0, 255);
-    SDL_RenderClear(spark.renderer);
-    SDL_RenderPresent(spark.renderer);
-
-    spark.window_state.base_width = width;
-    spark.window_state.base_height = height;
-    spark.window_state.mode = SPARK_WINDOW_MODE_FIXED;
-    spark.window_state.scale = SPARK_SCALE_NONE;
-    spark.window_state.scale_x = 1.0f;
-    spark.window_state.scale_y = 1.0f;
-    spark.window_state.viewport = (SDL_Rect){0, 0, width, height};
+    // Initialize window state
+    spark.window_state = (WindowState){
+        .base_width = width,
+        .base_height = height,
+        .mode = SPARK_WINDOW_MODE_FIXED,
+        .scale = SPARK_SCALE_NONE,
+        .scale_x = 1.0f,
+        .scale_y = 1.0f,
+        .viewport = {0, 0, width, height}
+    };
 
     return true;
 }
+
 void spark_set_load(void (*load)(void)) {
     spark.load = load;
 }
@@ -124,11 +168,11 @@ int spark_run(void) {
     if (spark.load) {
         spark.load();
     }
-
+    
     #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(main_loop_iteration, 0, 1);
     #else
-    while (!should_quit) {  // Changed this condition
+    while (!should_quit) {
         main_loop_iteration();
     }
     #endif
@@ -137,10 +181,15 @@ int spark_run(void) {
 }
 
 void spark_quit(void) {
-    spark_graphics_cleanup();
+    spark_event_cleanup();
     
-    SDL_DestroyRenderer(spark.renderer);
-    SDL_DestroyWindow(spark.window);
+    if (spark.renderer) {
+        spark_graphics_cleanup();
+        SDL_DestroyRenderer(spark.renderer);
+    }
+    if (spark.window) {
+        SDL_DestroyWindow(spark.window);
+    }
     TTF_Quit();
     SDL_Quit();
 }

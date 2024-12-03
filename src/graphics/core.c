@@ -5,18 +5,10 @@
 #include "internal.h"
 #include <stdio.h>
 
-NSVGrasterizer* global_rasterizer = NULL;
 SparkFont* default_font = NULL;
 
 void spark_graphics_init(void) {
     printf("Initializing graphics...\n");
-    if (!global_rasterizer) {
-        global_rasterizer = nsvgCreateRasterizer();
-        if (!global_rasterizer) {
-            printf("Failed to create NanoSVG rasterizer\n");
-            return;
-        }
-    }
 }
 
 void ensure_default_font(void) {
@@ -29,11 +21,6 @@ void spark_graphics_cleanup(void) {
     if (default_font) {
         spark_font_free(default_font);
         default_font = NULL;
-    }
-    
-    if (global_rasterizer) {
-        nsvgDeleteRasterizer(global_rasterizer);
-        global_rasterizer = NULL;
     }
 }
 

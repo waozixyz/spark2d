@@ -263,3 +263,13 @@ void spark_graphics_text_free(SparkText* text) {
         free(text);
     }
 }
+
+float spark_graphics_text_get_width(SparkText* text) {
+    if (!text) return 0;
+    return text->width;
+}
+
+float spark_graphics_text_get_height(SparkText* text) {
+    if (!text) return 0;
+    return text->height;
+}

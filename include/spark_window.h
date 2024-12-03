@@ -19,15 +19,15 @@ typedef enum {
     SPARK_WINDOW_MODE_RESPONSIVE,  // Window can be resized
 } SparkWindowMode;
 
-typedef struct {
-    int base_width;          // Original/base window width
-    int base_height;         // Original/base window height
-    float scale_x;           // Current horizontal scale factor
-    float scale_y;           // Current vertical scale factor
-    SparkWindowMode mode;    // Current window mode
-    SparkScaleMode scale;    // Current scale mode
-    SDL_Rect viewport;       // Current viewport for maintaining aspect ratio
-} SparkWindowState;
+typedef struct WindowState {
+    int base_width;
+    int base_height;
+    int mode;
+    int scale;
+    float scale_x;
+    float scale_y;
+    SDL_Rect viewport;
+} WindowState;
 
 // Function declarations
 void spark_window_set_mode(SparkWindowMode mode);

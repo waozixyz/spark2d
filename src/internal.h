@@ -14,7 +14,7 @@ typedef struct {
     void (*load)(void);
     void (*update)(float dt);
     void (*draw)(void);
-    SparkWindowState window_state;
+    WindowState window_state;
 } Spark2D;
 
 // Make spark accessible to other source files that include internal.h
