@@ -34,6 +34,7 @@ typedef struct {
     SDL_Color color_mod;
     SparkImageFilterMode filter_mode;
     bool is_svg;
+    char* path;
 } SparkImage;
 
 #endif

@@ -23,17 +23,28 @@ static SDL_Surface* create_scaled_surface(SDL_Surface* source, int target_width,
     return scaled;
 }
 
+static void apply_texture_properties(SparkImage* image) {
+    SDL_SetTextureColorMod(image->texture, 
+                          image->color_mod.r,
+                          image->color_mod.g,
+                          image->color_mod.b);
+    SDL_SetTextureAlphaMod(image->texture, image->color_mod.a);
+    SDL_SetTextureBlendMode(image->texture, SDL_BLENDMODE_BLEND);
+}
 static bool update_svg_texture(SparkImage* image, float target_width, float target_height) {
-    if (!image->is_svg || !image->surface) return false;
+    if (!image->is_svg || !image->path) return false;
     if ((int)target_width == image->width && (int)target_height == image->height) return true;
 
-    SDL_Surface* scaled_surface = create_scaled_surface(image->surface, 
-                                                      (int)target_width, 
-                                                      (int)target_height);
-    if (!scaled_surface) return false;
+    SDL_IOStream* io = SDL_IOFromFile(image->path, "rb");
+    if (!io) return false;
 
-    SDL_Texture* new_texture = SDL_CreateTextureFromSurface(spark.renderer, scaled_surface);
-    SDL_DestroySurface(scaled_surface);
+    SDL_Surface* new_surface = IMG_LoadSizedSVG_IO(io, (int)target_width, (int)target_height);
+    SDL_CloseIO(io);
+    
+    if (!new_surface) return false;
+
+    SDL_Texture* new_texture = SDL_CreateTextureFromSurface(spark.renderer, new_surface);
+    SDL_DestroySurface(new_surface);
 
     if (!new_texture) return false;
 
@@ -45,15 +56,6 @@ static bool update_svg_texture(SparkImage* image, float target_width, float targ
     return true;
 }
 
-static void apply_texture_properties(SparkImage* image) {
-    SDL_SetTextureColorMod(image->texture, 
-                          image->color_mod.r,
-                          image->color_mod.g,
-                          image->color_mod.b);
-    SDL_SetTextureAlphaMod(image->texture, image->color_mod.a);
-    SDL_SetTextureBlendMode(image->texture, SDL_BLENDMODE_BLEND);
-}
-
 SparkImage* spark_graphics_load_image(const char* path) {    
     bool is_svg = false;
     const char* ext = strrchr(path, '.');
@@ -61,7 +63,20 @@ SparkImage* spark_graphics_load_image(const char* path) {
         is_svg = true;
     }
 
-    SDL_Surface* surface = IMG_Load(path);
+    SDL_Surface* surface = NULL;
+    if (is_svg) {
+        SDL_IOStream* io = SDL_IOFromFile(path, "rb");
+        if (!io) {
+            printf("Failed to open SVG file: %s\n", SDL_GetError());
+            return NULL;
+        }
+        
+        surface = IMG_LoadSVG_IO(io);
+        SDL_CloseIO(io);
+    } else {
+        surface = IMG_Load(path);
+    }
+
     if (!surface) {
         printf("Failed to load image: %s\n", SDL_GetError());
         return NULL;
@@ -80,11 +95,13 @@ SparkImage* spark_graphics_load_image(const char* path) {
     image->is_svg = is_svg;
     image->color_mod = (SDL_Color){255, 255, 255, 255};
     image->filter_mode = SPARK_IMAGE_FILTER_NONE;
+    image->path = is_svg ? strdup(path) : NULL;
     
     image->texture = SDL_CreateTextureFromSurface(spark.renderer, surface);
     if (!image->texture) {
         printf("Failed to create texture: %s\n", SDL_GetError());
         SDL_DestroySurface(surface);
+        if (image->path) free(image->path);
         free(image);
         return NULL;
     }
@@ -92,7 +109,6 @@ SparkImage* spark_graphics_load_image(const char* path) {
     apply_texture_properties(image);
     return image;
 }
-
 SparkImage* spark_graphics_new_image_from_memory(const void* data, size_t size) {
     bool is_svg = false;
     if (size > 5) {
@@ -203,8 +219,6 @@ void spark_graphics_image_draw_rotated(SparkImage* image, float x, float y, floa
     SDL_RenderTextureRotated(spark.renderer, image->texture, NULL, &dest, 
                             r * (180.0f / M_PI), &origin, SDL_FLIP_NONE);
 }
-
-// Rest of the utility functions remain the same
 void spark_graphics_image_free(SparkImage* image) {
     if (!image) return;
 
@@ -215,6 +229,10 @@ void spark_graphics_image_free(SparkImage* image) {
     if (image->surface) {
         SDL_DestroySurface(image->surface);
         image->surface = NULL;
+    }
+    if (image->path) {
+        free(image->path);
+        image->path = NULL;
     }
     free(image);
 }
