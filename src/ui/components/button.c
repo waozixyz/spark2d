@@ -7,25 +7,29 @@
 #include <math.h>
 #include <stdio.h>
 
+// Button creation
 static SparkButton* create_button_base(float x, float y, float width, float height) {
-    SparkButton* button = malloc(sizeof(SparkButton));
-    if (!button) return NULL;
+    SparkButton* button = calloc(1, sizeof(SparkButton));
+    if (!button) {
+        printf("ERROR: Failed to allocate button\n");
+        return NULL;
+    }
 
     button->x = x;
     button->y = y;
     button->width = width;
     button->height = height;
-    button->text = NULL;
-    button->text_texture = NULL;
-    button->image = NULL;
-    button->callback = NULL;
-    button->user_data = NULL;
-    button->hovered = false;
-    button->pressed = false;
     button->font = spark_font_new_default();
+    
+    if (!button->font) {
+        printf("ERROR: Failed to create default font\n");
+        free(button);
+        return NULL;
+    }
 
     return button;
 }
+
 
 SparkButton* spark_ui_button_new_text(float x, float y, float width, float height, const char* text) {
     SparkButton* button = create_button_base(x, y, width, height);
@@ -36,6 +40,7 @@ SparkButton* spark_ui_button_new_text(float x, float y, float width, float heigh
     button->text_texture = spark_graphics_new_text(button->font, text);
 
     if (!button->text_texture) {
+        printf("ERROR: Failed to create text texture\n");
         free(button->text);
         free(button);
         return NULL;
@@ -112,10 +117,12 @@ static void draw_button_background(SparkButton* button, const SparkTheme* theme,
                                  float scaled_x, float scaled_y,
                                  float scaled_width, float scaled_height,
                                  SDL_Color base_color, bool is_tab) {
-
-    // Check theme struct
+    if (!button) {
+        printf("NULL button in draw_button_background\n");
+        return;
+    }
     if (!theme) {
-        printf("Error: Null theme in draw_button_background\n");
+        printf("NULL theme in draw_button_background\n");
         return;
     }
 
@@ -153,73 +160,107 @@ static void draw_button_background(SparkButton* button, const SparkTheme* theme,
 }
 
 
-static void draw_button_text(SparkButton* button, float scaled_x, float scaled_y,
-                          float scaled_width, float scaled_height,
-                          SDL_Color text_color) {
-          
-   float scale_x, scale_y;
-   spark_window_get_scale(&scale_x, &scale_y);
-   float scaled_size = 16.0f * fmin(scale_x, scale_y);
-   
-   update_button_font_size(button, scaled_size);
+// Drawing helpers
+static bool setup_drawing_state(SparkButton* button, 
+                              const SparkTheme** theme,
+                              SDL_Color* base_color,
+                              SDL_Color* text_color) {
+    
+    *theme = spark_theme_get_current();
+    if (!*theme) {
+        printf("No current theme, trying default\n");
+        *theme = spark_theme_get_default();
+        if (!*theme) {
+            printf("ERROR: No theme available\n");
+            return false;
+        }
+    }
 
-   float text_width, text_height;
-   spark_graphics_text_get_scaled_size(button->text_texture, &text_width, &text_height);
-   
-   float text_x = scaled_x + (scaled_width - text_width) / 2;
-   float text_y = scaled_y + (scaled_height - text_height) / 2;
+    *base_color = (*theme)->primary;
+    *text_color = (*theme)->on_primary;
 
-   spark_graphics_text_set_color(button->text_texture,
-       text_color.r / 255.0f,
-       text_color.g / 255.0f, 
-       text_color.b / 255.0f,
-       text_color.a / 255.0f);
+    if (button->is_tab) {
+        *base_color = (*theme)->surface;
+        *text_color = (*theme)->on_surface;
 
-   spark_graphics_text_draw(button->text_texture, text_x, text_y);
+        SparkTab* tab = (SparkTab*)button->user_data;
+        if (tab && tab->parent_tabbar && 
+            tab->parent_tabbar->active_tab == tab - tab->parent_tabbar->tabs) {
+            *text_color = (*theme)->primary;
+        }
+    }
+
+    return true;
 }
 
+
+static void draw_button_text(SparkButton* button, 
+                           float scaled_x, 
+                           float scaled_y,
+                           float scaled_width, 
+                           float scaled_height,
+                           SDL_Color text_color) {
+    
+    if (!button->text_texture) {
+        printf("ERROR: No text texture in draw_button_text\n");
+        return;
+    }
+
+    float scale_x, scale_y;
+    spark_window_get_scale(&scale_x, &scale_y);
+    float scaled_size = 16.0f * fmin(scale_x, scale_y);
+    
+    update_button_font_size(button, scaled_size);
+
+    float text_width, text_height;
+    spark_graphics_text_get_scaled_size(button->text_texture, &text_width, &text_height);
+    
+    float text_x = scaled_x + (scaled_width - text_width) / 2;
+    float text_y = scaled_y + (scaled_height - text_height) / 2;
+
+    spark_graphics_text_set_color(button->text_texture,
+        text_color.r / 255.0f,
+        text_color.g / 255.0f,
+        text_color.b / 255.0f,
+        text_color.a / 255.0f);
+
+    spark_graphics_text_draw(button->text_texture, text_x, text_y);
+}
+
+
+
 void spark_ui_button_draw(SparkButton* button) {
-   if (!button) return;
+    if (!button) {
+        printf("ERROR: Attempted to draw NULL button\n");
+        return;
+    }
 
-   const SparkTheme* theme = spark_theme_get_current();
-   if (!theme) theme = spark_theme_get_default();
-   if (!theme) return;
 
-   float scaled_x = spark_ui_scale_x(button->x);
-   float scaled_y = spark_ui_scale_y(button->y);
-   float scaled_width = spark_ui_scale_x(button->width);
-   float scaled_height = spark_ui_scale_y(button->height);
+    const SparkTheme* theme;
+    SDL_Color base_color, text_color;
+    if (!setup_drawing_state(button, &theme, &base_color, &text_color)) {
+        return;
+    }
 
-   SDL_Color base_color = theme->primary;
-   SDL_Color text_color = theme->on_primary;
+    float scaled_x = spark_ui_scale_x(button->x);
+    float scaled_y = spark_ui_scale_y(button->y);
+    float scaled_width = spark_ui_scale_x(button->width);
+    float scaled_height = spark_ui_scale_y(button->height);
 
-   // Handle tab button coloring
-   if (button->is_tab) {
-       base_color = theme->surface; 
-       text_color = theme->on_surface;
+    SDL_BlendMode prev_blend;
+    SDL_GetRenderDrawBlendMode(spark.renderer, &prev_blend);
+    SDL_SetRenderDrawBlendMode(spark.renderer, SDL_BLENDMODE_BLEND);
 
-       SparkTab* tab = (SparkTab*)button->user_data;
-       if (tab->parent_tabbar->active_tab == tab - tab->parent_tabbar->tabs) {
-           text_color = theme->primary;
-       }
-   }
+    draw_button_background(button, theme, scaled_x, scaled_y, scaled_width, scaled_height,
+                         base_color, button->is_tab);
 
-   // Set blend mode
-   SDL_BlendMode prev_blend;
-   SDL_GetRenderDrawBlendMode(spark.renderer, &prev_blend);
-   SDL_SetRenderDrawBlendMode(spark.renderer, SDL_BLENDMODE_BLEND);
-
-   // Draw background
-   draw_button_background(button, theme, scaled_x, scaled_y, scaled_width, scaled_height,
-                        base_color, button->is_tab);
-
-   // Draw content
-   switch (button->type) {
-       case SPARK_BUTTON_TEXT:
-           if (button->text_texture) {
-               draw_button_text(button, scaled_x, scaled_y, scaled_width, scaled_height, text_color);
-           }
-           break;
+    switch (button->type) {
+        case SPARK_BUTTON_TEXT:
+            if (button->text_texture) {
+                draw_button_text(button, scaled_x, scaled_y, scaled_width, scaled_height, text_color);
+            }
+            break;
+            
 
        case SPARK_BUTTON_IMAGE:
            if (button->image && button->image->texture) {
@@ -288,9 +329,9 @@ void spark_ui_button_draw(SparkButton* button) {
            break;
    }
 
-   SDL_SetRenderDrawBlendMode(spark.renderer, prev_blend);
-}
 
+    SDL_SetRenderDrawBlendMode(spark.renderer, prev_blend);
+}
 
 
 void spark_ui_button_update(SparkButton* button) {

@@ -219,6 +219,7 @@ void spark_graphics_image_draw_rotated(SparkImage* image, float x, float y, floa
     SDL_RenderTextureRotated(spark.renderer, image->texture, NULL, &dest, 
                             r * (180.0f / M_PI), &origin, SDL_FLIP_NONE);
 }
+
 void spark_graphics_image_free(SparkImage* image) {
     if (!image) return;
 

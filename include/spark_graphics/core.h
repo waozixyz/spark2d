@@ -9,4 +9,7 @@ void spark_graphics_clear(void);
 void spark_graphics_present(void);
 SDL_Renderer* spark_graphics_get_renderer(void);
 
+void spark_graphics_begin_frame(void);
+void spark_graphics_end_frame(void);
+
 #endif

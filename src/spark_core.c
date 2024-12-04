@@ -13,7 +13,6 @@
 // Configuration constants
 #define TARGET_FPS 60.0
 #define TARGET_FRAME_TIME (1.0 / TARGET_FPS)
-#define DEFAULT_BACKGROUND_COLOR 0, 0, 0, 255
 
 // Global state
 Spark2D spark = {0};
@@ -84,16 +83,14 @@ static void update_and_render(float dt) {
         spark.update(dt);
     }
 
-    // Clear screen
-    SDL_SetRenderDrawColor(spark.renderer, DEFAULT_BACKGROUND_COLOR);
-    SDL_RenderClear(spark.renderer);
-
+    spark_graphics_begin_frame();
+    
     // Render
     if (spark.draw) {
         spark.draw();
     }
 
-    SDL_RenderPresent(spark.renderer);
+    spark_graphics_end_frame();  
 }
 
 static void main_loop_iteration(void) {
