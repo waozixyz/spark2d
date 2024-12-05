@@ -15,6 +15,7 @@ typedef struct {
     void (*update)(float dt);
     void (*draw)(void);
     WindowState window_state;
+    bool imgui_initialized;
 } Spark2D;
 
 // Make spark accessible to other source files that include internal.h

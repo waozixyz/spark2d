@@ -48,6 +48,7 @@ static bool queue_event(SparkEvent* event) {
     event_system.size++;
     return true;
 }
+
 void spark_event_pump(void) {
     SDL_Event sdl_event;
     while (SDL_PollEvent(&sdl_event)) {
@@ -86,23 +87,10 @@ void spark_event_pump(void) {
                 break;
             }
 
-            case SDL_EVENT_MOUSE_BUTTON_DOWN: {
-                event.type = SPARK_EVENT_MOUSEPRESSED;
-                SparkMouseEvent mouse_data = {
-                    .x = sdl_event.button.x,
-                    .y = sdl_event.button.y,
-                    .button = sdl_event.button.button,
-                    .clicks = sdl_event.button.clicks,
-                    .istouch = false
-                };
-                event.data = malloc(sizeof(SparkMouseEvent));
-                memcpy(event.data, &mouse_data, sizeof(SparkMouseEvent));
-                event.data_size = sizeof(SparkMouseEvent);
-                break;
-            }
-
+            case SDL_EVENT_MOUSE_BUTTON_DOWN:
             case SDL_EVENT_MOUSE_BUTTON_UP: {
-                event.type = SPARK_EVENT_MOUSERELEASED;
+                event.type = (sdl_event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) ? 
+                            SPARK_EVENT_MOUSEPRESSED : SPARK_EVENT_MOUSERELEASED;
                 SparkMouseEvent mouse_data = {
                     .x = sdl_event.button.x,
                     .y = sdl_event.button.y,
@@ -140,41 +128,24 @@ void spark_event_pump(void) {
                 event.data = malloc(sizeof(SparkResizeEvent));
                 memcpy(event.data, &resize_data, sizeof(SparkResizeEvent));
                 event.data_size = sizeof(SparkResizeEvent);
-                spark_window_update_scale();
                 break;
             }
 
-            case SDL_EVENT_WINDOW_FOCUS_GAINED: {
-                event.type = SPARK_EVENT_FOCUS;
-                bool focus_data = true;
-                event.data = malloc(sizeof(bool));
-                memcpy(event.data, &focus_data, sizeof(bool));
-                event.data_size = sizeof(bool);
-                break;
-            }
-
+            case SDL_EVENT_WINDOW_FOCUS_GAINED:
             case SDL_EVENT_WINDOW_FOCUS_LOST: {
                 event.type = SPARK_EVENT_FOCUS;
-                bool focus_data = false;
+                bool focus_data = (sdl_event.type == SDL_EVENT_WINDOW_FOCUS_GAINED);
                 event.data = malloc(sizeof(bool));
                 memcpy(event.data, &focus_data, sizeof(bool));
                 event.data_size = sizeof(bool);
                 break;
             }
 
-            case SDL_EVENT_WINDOW_MINIMIZED: {
-                event.type = SPARK_EVENT_VISIBLE;
-                bool visible_data = false;
-                event.data = malloc(sizeof(bool));
-                memcpy(event.data, &visible_data, sizeof(bool));
-                event.data_size = sizeof(bool);
-                break;
-            }
-
+            case SDL_EVENT_WINDOW_MINIMIZED:
             case SDL_EVENT_WINDOW_RESTORED:
             case SDL_EVENT_WINDOW_MAXIMIZED: {
                 event.type = SPARK_EVENT_VISIBLE;
-                bool visible_data = true;
+                bool visible_data = (sdl_event.type != SDL_EVENT_WINDOW_MINIMIZED);
                 event.data = malloc(sizeof(bool));
                 memcpy(event.data, &visible_data, sizeof(bool));
                 event.data_size = sizeof(bool);
@@ -192,6 +163,9 @@ void spark_event_pump(void) {
                 event.data_size = sizeof(SparkWheelEvent);
                 break;
             }
+            
+            default:
+                break;
         }
 
         if (event.type != SPARK_EVENT_NONE) {
@@ -199,7 +173,6 @@ void spark_event_pump(void) {
         }
     }
 }
-
 
 bool spark_event_poll(SparkEvent* out_event) {
     if (event_system.size == 0) {
