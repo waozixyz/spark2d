@@ -7,3 +7,6 @@
 [submodule "deps/SDL_image"]
 	path = deps/SDL_image
 	url = https://github.com/libsdl-org/SDL_image.git
+[submodule "deps/lvgl"]
+	path = deps/lvgl
+	url = https://github.com/lvgl/lvgl.git
