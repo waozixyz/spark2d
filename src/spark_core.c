@@ -6,8 +6,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "spark_imgui.h"
-
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
@@ -49,32 +47,11 @@ static bool init_subsystems(const char* title, int width, int height) {
         return false;
     }
 
-    igCreateContext(NULL);
-    ImGuiIO* io = igGetIO();
-    
-    // Initialize SDL3 implementation
-    if (!ImGui_ImplSDL3_InitForSDLRenderer(spark.window, spark.renderer)) {
-        fprintf(stderr, "ImGui SDL3 init failed\n");
-        return false;
-    }
-    
-    if (!ImGui_ImplSDLRenderer3_Init(spark.renderer)) {
-        fprintf(stderr, "ImGui SDL3 Renderer init failed\n");
-        ImGui_ImplSDL3_Shutdown();
-        return false;
-    }
-
-    spark.imgui_initialized = true;
     return true;
 }
 
 static void process_events(void) {
     SDL_Event sdl_event;
-    while (SDL_PollEvent(&sdl_event)) {
-        if (spark.imgui_initialized) {
-            ImGui_ImplSDL3_ProcessEvent(&sdl_event);
-        }
-    }
     
     spark_event_pump();
     
@@ -106,12 +83,6 @@ static void process_events(void) {
 
 
 static void update_and_render(float dt) {
-    if (spark.imgui_initialized) {
-        ImGui_ImplSDLRenderer3_NewFrame();
-        ImGui_ImplSDL3_NewFrame();
-        igNewFrame();
-    }
-
     // Update logic
     if (spark.update) {
         spark.update(dt);
@@ -122,12 +93,6 @@ static void update_and_render(float dt) {
     // Render
     if (spark.draw) {
         spark.draw();
-    }
-
-    // ImGui rendering
-    if (spark.imgui_initialized) {
-        igRender();
-        ImGui_ImplSDLRenderer3_RenderDrawData(igGetDrawData(), spark.renderer);
     }
 
     spark_graphics_end_frame();  
@@ -219,11 +184,6 @@ int spark_run(void) {
 
 
 void spark_quit(void) {
-    if (spark.imgui_initialized) {
-        ImGui_ImplSDLRenderer3_Shutdown();
-        ImGui_ImplSDL3_Shutdown();
-        igDestroyContext(NULL);
-    }
     spark_event_cleanup();
     
     if (spark.renderer) {

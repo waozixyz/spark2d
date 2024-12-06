@@ -1,28 +1,20 @@
 # Dependency paths
 DEPS_DIR=deps
-CIMGUI_PATH=$(DEPS_DIR)/cimgui
 SDL_PATH=$(DEPS_DIR)/SDL
 SDL_TTF_PATH=$(DEPS_DIR)/SDL_ttf
 SDL_IMAGE_PATH=$(DEPS_DIR)/SDL_image
 
 CC=gcc
-CXX=g++
 EMCC=emcc
-CXXFLAGS=$(CFLAGS) -DIMGUI_IMPL_API="extern \"C\""
 
 CFLAGS=-Wall -Wextra -fPIC \
 -I./include \
--I$(CIMGUI_PATH) \
--I$(CIMGUI_PATH)/imgui \
--I$(CIMGUI_PATH)/imgui/backends \
 -I$(SDL_PATH)/include \
--DCIMGUI_DEFINE_ENUMS_AND_STRUCTS
 
 LDFLAGS=-L$(SDL_PATH)/build \
 -L$(SDL_TTF_PATH)/build \
 -L$(SDL_IMAGE_PATH)/build \
--L$(CIMGUI_PATH) \
--lSDL3 -lSDL3_ttf -lSDL3_image -lm -lcimgui
+-lSDL3 -lSDL3_ttf -lSDL3_image -lm
 
 EM_FLAGS=-s USE_SDL=3 -s USE_SDL_TTF=3 -s WASM=1 \
 -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' \
@@ -63,21 +55,10 @@ $(SRC_DIR)/ui/components/dropdown.c \
 $(SRC_DIR)/ui/components/tabbar.c \
 $(SRC_DIR)/ui/components/slider.c
 
-IMGUI_SOURCES = \
-$(CIMGUI_PATH)/imgui/imgui.cpp \
-$(CIMGUI_PATH)/imgui/imgui_draw.cpp \
-$(CIMGUI_PATH)/imgui/imgui_tables.cpp \
-$(CIMGUI_PATH)/imgui/imgui_widgets.cpp
 
-BACKEND_SOURCES = \
-$(CIMGUI_PATH)/imgui/backends/imgui_impl_sdl3.cpp \
-$(CIMGUI_PATH)/imgui/backends/imgui_impl_sdlrenderer3.cpp
-
-ALL_SOURCES = $(SOURCES) $(GRAPHICS_SOURCES) $(UI_SOURCES) $(IMGUI_SOURCES) $(BACKEND_SOURCES)
+ALL_SOURCES = $(SOURCES) $(GRAPHICS_SOURCES) $(UI_SOURCES) $(BACKEND_SOURCES)
 
 OBJ=$(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SOURCES) $(GRAPHICS_SOURCES) $(UI_SOURCES))
-OBJ+=$(patsubst $(CIMGUI_PATH)/imgui/%.cpp,$(OBJ_DIR)/%.o,$(IMGUI_SOURCES))
-OBJ+=$(patsubst $(CIMGUI_PATH)/imgui/backends/%.cpp,$(OBJ_DIR)/%.o,$(BACKEND_SOURCES))
 
 WEB_OBJ=$(patsubst $(SRC_DIR)/%.c,$(WEB_OBJ_DIR)/%.o,$(ALL_SOURCES))
 
@@ -95,21 +76,6 @@ deps:
 	cd $(SDL_PATH) && cmake -B build && cmake --build build
 	cd $(SDL_TTF_PATH) && cmake -B build && cmake --build build
 	cd $(SDL_IMAGE_PATH) && cmake -B build && cmake --build build
-	cd $(CIMGUI_PATH) && \
-	CMAKE_C_FLAGS="-DIMGUI_IMPL_API='extern \"C\"'" \
-	cmake -B build \
-	-DIMGUI_IMPL_SDL=ON \
-	-DIMGUI_IMPL_SDL_VERSION=3 \
-	-DIMGUI_IMPL_OPENGL=ON \
-	&& cmake --build build
-
-$(OBJ_DIR)/%.o: $(CIMGUI_PATH)/imgui/backends/%.cpp
-	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) -I$(CIMGUI_PATH)/imgui -c $< -o $@
-
-$(OBJ_DIR)/%.o: $(CIMGUI_PATH)/imgui/%.cpp
-	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(dir $@)
