@@ -92,18 +92,18 @@ static void update_and_render(float dt) {
         spark.update(dt);
     }
 
-    // Clear with transparent black instead of opaque black
-    SDL_SetRenderDrawColor(spark.renderer, 0, 0, 0, 0);
-    SDL_RenderClear(spark.renderer);
-
-    // Update LVGL before drawing
-    spark_lvgl_update();
-
-    // Then do any additional drawing
+    // Clear and draw game content first
+    spark_graphics_begin_frame();
     if (spark.draw) {
         spark.draw();
     }
+    spark_graphics_end_frame();
     
+    // Draw UI on top and make sure it's blended properly
+    SDL_SetRenderDrawBlendMode(spark.renderer, SDL_BLENDMODE_BLEND);
+    spark_lvgl_update();
+
+    // Present the final frame
     SDL_RenderPresent(spark.renderer);
 }
 

@@ -1,7 +1,7 @@
 // spark_lvgl.h
 #ifndef SPARK_LVGL_H
 #define SPARK_LVGL_H
-
+#include <SDL2/SDL.h>
 #include <stdbool.h>
 #include "lvgl.h"
 
@@ -25,6 +25,21 @@ typedef struct {
     float scale_x;
     float scale_y;
 } SparkLVGL;
+
+
+// Input state structure
+typedef struct {
+    bool mouse_pressed;
+    int mouse_x;
+    int mouse_y;
+    bool has_wheel_event;
+    SDL_Event wheel_event;
+    lv_group_t* input_group;
+    lv_indev_t* indev_mouse;
+    lv_indev_t* indev_keypad;
+    lv_indev_t* indev_encoder;
+} SparkInput;
+
 
 // Core functions
 bool spark_lvgl_init(void);

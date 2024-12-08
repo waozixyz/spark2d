@@ -9,105 +9,127 @@ static SparkTheme* current_theme = NULL;
 static SparkTheme default_theme;
 static bool default_theme_initialized = false;
 
-static SparkTheme get_preset_theme(SparkThemePreset preset) {
-    switch (preset) {
-        case SPARK_THEME_PRESET_TEAL:
-            return (SparkTheme){
-                .primary = {0, 150, 136, 255},        // Teal 500
-                .primary_dark = {0, 121, 107, 255},   // Teal 700
-                .primary_light = {77, 182, 172, 255}, // Teal 300
-                
-                .secondary = {255, 87, 34, 255},      // Deep Orange 500
-                .secondary_dark = {230, 74, 25, 255}, // Deep Orange 700
-                .secondary_light = {255, 138, 101, 255}, // Deep Orange 300
-                
-                .background = {250, 250, 250, 255},   // Grey 50
-                .surface = {255, 255, 255, 255},      // White
-                .error = {211, 47, 47, 255},          // Red 700
-                
-                .on_primary = {255, 255, 255, 255},
-                .on_secondary = {255, 255, 255, 255},
-                .on_background = {33, 33, 33, 255},    // More refined black
-                .on_surface = {33, 33, 33, 255},
-                .on_error = {255, 255, 255, 255},
-                
-                // State overlays with color tinting
-                .hover_overlay = {0, 150, 136, 8},    // Teal with 4% opacity
-                .pressed_overlay = {0, 150, 136, 16}, // Teal with 8% opacity
-                .disabled_overlay = {97, 97, 97, 38}, // Grey with 15% opacity
-                
-                .elevation_levels = {0, 1, 2, 4, 6, 8, 12, 16, 24},
-                .spacing_unit = 8.0f,
-                .border_radius = 4.0f,
-                .image_size = 24.0f
-            };
-            
-        case SPARK_THEME_PRESET_DARK:
-            return (SparkTheme){
-                .primary = {187, 134, 252, 255},      // Purple A200
-                .primary_dark = {155, 89, 182, 255},  // Darker purple
-                .primary_light = {203, 166, 247, 255},// Lighter purple
-                
-                .secondary = {3, 218, 197, 255},      // Teal A400
-                .secondary_dark = {0, 179, 164, 255}, 
-                .secondary_light = {64, 225, 208, 255},
-                
-                .background = {18, 18, 18, 255},      // Grey 900
-                .surface = {30, 30, 30, 255},         // Grey 800
-                .error = {207, 102, 121, 255},        // Red A200
-                
-                .on_primary = {33, 33, 33, 255},
-                .on_secondary = {33, 33, 33, 255},
-                .on_background = {255, 255, 255, 222}, // 87% white
-                .on_surface = {255, 255, 255, 222},
-                .on_error = {33, 33, 33, 255},
-                
-                // State overlays with color tinting
-                .hover_overlay = {187, 134, 252, 16},  // Primary with 8% opacity
-                .pressed_overlay = {187, 134, 252, 25},// Primary with 12% opacity
-                .disabled_overlay = {255, 255, 255, 12},// White with 10% opacity
-                
-                .elevation_levels = {0, 1, 2, 4, 6, 8, 12, 16, 24},
-                .spacing_unit = 8.0f,
-                .border_radius = 4.0f,
-                .image_size = 24.0f
-            };
-            
-        default: // SPARK_THEME_PRESET_LIGHT
-            return (SparkTheme){
-                .primary = {103, 58, 183, 255},       // Deep Purple 500
-                .primary_dark = {81, 45, 168, 255},   // Deep Purple 700
-                .primary_light = {149, 117, 205, 255},// Deep Purple 300
-                
-                .secondary = {0, 188, 212, 255},      // Cyan 500
-                .secondary_dark = {0, 151, 167, 255}, // Cyan 700
-                .secondary_light = {77, 208, 225, 255},// Cyan 300
-                
-                .background = {250, 250, 250, 255},   // Grey 50
-                .surface = {255, 255, 255, 255},      // White
-                .error = {211, 47, 47, 255},          // Red 700
-                
-                .on_primary = {255, 255, 255, 255},
-                .on_secondary = {33, 33, 33, 255},
-                .on_background = {33, 33, 33, 255},    // More refined black
-                .on_surface = {33, 33, 33, 255},
-                .on_error = {255, 255, 255, 255},
-                
-                // State overlays with color tinting
-                .hover_overlay = {103, 58, 183, 8},    // Primary with 4% opacity
-                .pressed_overlay = {103, 58, 183, 16}, // Primary with 8% opacity
-                .disabled_overlay = {97, 97, 97, 38},  // Grey with 15% opacity
-                
-                .elevation_levels = {0, 1, 2, 4, 6, 8, 12, 16, 24},
-                .spacing_unit = 8.0f,
-                .border_radius = 4.0f,
-                .image_size = 24.0f
-            };
+static void apply_theme_to_lvgl(SparkTheme* theme) {
+    if (!theme) return;
+    
+    static lv_theme_t new_theme;
+    lv_theme_default_init(NULL, 
+                         theme->primary,
+                         theme->secondary,
+                         true,  // dark mode flag based on theme
+                         &lv_font_default);
+    
+    theme->lv_theme = &new_theme;
+    
+    // Apply theme-wide metrics
+    lv_style_t* style = lv_theme_get_font_normal(&new_theme);
+    if (style) {
+        lv_style_set_pad_all(style, theme->spacing_unit);
+        lv_style_set_radius(style, theme->border_radius);
     }
 }
+
+static SparkTheme get_preset_theme(SparkThemePreset preset) {
+    SparkTheme theme = {0};
+    
+    switch (preset) {
+        case SPARK_THEME_PRESET_TEAL:
+            theme = (SparkTheme){
+                .primary = lv_color_make(0, 150, 136),
+                .primary_dark = lv_color_make(0, 121, 107),
+                .primary_light = lv_color_make(77, 182, 172),
+                
+                .secondary = lv_color_make(255, 87, 34),
+                .secondary_dark = lv_color_make(230, 74, 25),
+                .secondary_light = lv_color_make(255, 138, 101),
+                
+                .background = lv_color_make(250, 250, 250),
+                .surface = lv_color_make(255, 255, 255),
+                .error = lv_color_make(211, 47, 47),
+                
+                .on_primary = lv_color_make(255, 255, 255),
+                .on_secondary = lv_color_make(255, 255, 255),
+                .on_background = lv_color_make(33, 33, 33),
+                .on_surface = lv_color_make(33, 33, 33),
+                .on_error = lv_color_make(255, 255, 255),
+                
+                .hover_opacity = LV_OPA_20,
+                .pressed_opacity = LV_OPA_40,
+                .disabled_opacity = LV_OPA_60,
+                
+                .spacing_unit = 8,
+                .border_radius = 4,
+                .image_size = 24
+            };
+            break;
+            
+        case SPARK_THEME_PRESET_DARK:
+            theme = (SparkTheme){
+                .primary = lv_color_make(187, 134, 252),
+                .primary_dark = lv_color_make(155, 89, 182),
+                .primary_light = lv_color_make(203, 166, 247),
+                
+                .secondary = lv_color_make(3, 218, 197),
+                .secondary_dark = lv_color_make(0, 179, 164),
+                .secondary_light = lv_color_make(64, 225, 208),
+                
+                .background = lv_color_make(18, 18, 18),
+                .surface = lv_color_make(30, 30, 30),
+                .error = lv_color_make(207, 102, 121),
+                
+                .on_primary = lv_color_make(33, 33, 33),
+                .on_secondary = lv_color_make(33, 33, 33),
+                .on_background = lv_color_make(255, 255, 255),
+                .on_surface = lv_color_make(255, 255, 255),
+                .on_error = lv_color_make(33, 33, 33),
+                
+                .hover_opacity = LV_OPA_20,
+                .pressed_opacity = LV_OPA_40,
+                .disabled_opacity = LV_OPA_60,
+                
+                .spacing_unit = 8,
+                .border_radius = 4,
+                .image_size = 24
+            };
+            break;
+            
+        default: // SPARK_THEME_PRESET_LIGHT
+            theme = (SparkTheme){
+                .primary = lv_color_make(103, 58, 183),
+                .primary_dark = lv_color_make(81, 45, 168),
+                .primary_light = lv_color_make(149, 117, 205),
+                
+                .secondary = lv_color_make(0, 188, 212),
+                .secondary_dark = lv_color_make(0, 151, 167),
+                .secondary_light = lv_color_make(77, 208, 225),
+                
+                .background = lv_color_make(250, 250, 250),
+                .surface = lv_color_make(255, 255, 255),
+                .error = lv_color_make(211, 47, 47),
+                
+                .on_primary = lv_color_make(255, 255, 255),
+                .on_secondary = lv_color_make(33, 33, 33),
+                .on_background = lv_color_make(33, 33, 33),
+                .on_surface = lv_color_make(33, 33, 33),
+                .on_error = lv_color_make(255, 255, 255),
+                
+                .hover_opacity = LV_OPA_20,
+                .pressed_opacity = LV_OPA_40,
+                .disabled_opacity = LV_OPA_60,
+                
+                .spacing_unit = 8,
+                .border_radius = 4,
+                .image_size = 24
+            };
+    }
+    
+    apply_theme_to_lvgl(&theme);
+    return theme;
+}
+
 static void initialize_default_theme(void) {
     if (!default_theme_initialized) {
-        default_theme = get_preset_theme(SPARK_THEME_PRESET_LIGHT);  // Use the light theme as default
+        default_theme = get_preset_theme(SPARK_THEME_PRESET_LIGHT);
         default_theme_initialized = true;
     }
 }
@@ -118,6 +140,7 @@ void spark_theme_init(void) {
         current_theme = malloc(sizeof(SparkTheme));
         if (current_theme) {
             *current_theme = default_theme;
+            apply_theme_to_lvgl(current_theme);
         }
     }
 }
@@ -125,6 +148,7 @@ void spark_theme_init(void) {
 void spark_theme_set_current(const SparkTheme* theme) {
     if (current_theme && theme) {
         *current_theme = *theme;
+        apply_theme_to_lvgl(current_theme);
     }
 }
 
@@ -140,24 +164,23 @@ const SparkTheme* spark_theme_get_default(void) {
     return &default_theme;
 }
 
-SDL_Color spark_theme_mix_colors(SDL_Color a, SDL_Color b, float mix) {
-    SDL_Color result;
-    result.r = (uint8_t)(a.r * (1.0f - mix) + b.r * mix);
-    result.g = (uint8_t)(a.g * (1.0f - mix) + b.g * mix);
-    result.b = (uint8_t)(a.b * (1.0f - mix) + b.b * mix);
-    result.a = (uint8_t)(a.a * (1.0f - mix) + b.a * mix);
-    return result;
+lv_color_t spark_theme_mix_colors(lv_color_t a, lv_color_t b, uint8_t mix) {
+    return lv_color_mix(b, a, mix);
 }
 
 SparkTheme* spark_theme_create_from_preset(SparkThemePreset preset) {
     SparkTheme* theme = malloc(sizeof(SparkTheme));
     if (theme) {
         *theme = get_preset_theme(preset);
+        apply_theme_to_lvgl(theme);
     }
     return theme;
 }
 
 void spark_theme_free(SparkTheme* theme) {
+    if (theme == current_theme) {
+        current_theme = NULL;
+    }
     free(theme);
 }
 
@@ -177,62 +200,62 @@ SparkThemeBuilder* spark_theme_builder_from_preset(SparkThemePreset preset) {
     return builder;
 }
 
-void spark_theme_builder_set_primary(SparkThemeBuilder* builder, SDL_Color color) {
+void spark_theme_builder_set_primary(SparkThemeBuilder* builder, lv_color_t color) {
     if (!builder) return;
     builder->theme.primary = color;
 }
 
-void spark_theme_builder_set_primary_dark(SparkThemeBuilder* builder, SDL_Color color) {
+void spark_theme_builder_set_primary_dark(SparkThemeBuilder* builder, lv_color_t color) {
     if (!builder) return;
     builder->theme.primary_dark = color;
 }
 
-void spark_theme_builder_set_primary_light(SparkThemeBuilder* builder, SDL_Color color) {
+void spark_theme_builder_set_primary_light(SparkThemeBuilder* builder, lv_color_t color) {
     if (!builder) return;
     builder->theme.primary_light = color;
 }
 
-void spark_theme_builder_set_secondary(SparkThemeBuilder* builder, SDL_Color color) {
+void spark_theme_builder_set_secondary(SparkThemeBuilder* builder, lv_color_t color) {
     if (!builder) return;
     builder->theme.secondary = color;
 }
 
-void spark_theme_builder_set_secondary_dark(SparkThemeBuilder* builder, SDL_Color color) {
+void spark_theme_builder_set_secondary_dark(SparkThemeBuilder* builder, lv_color_t color) {
     if (!builder) return;
     builder->theme.secondary_dark = color;
 }
 
-void spark_theme_builder_set_secondary_light(SparkThemeBuilder* builder, SDL_Color color) {
+void spark_theme_builder_set_secondary_light(SparkThemeBuilder* builder, lv_color_t color) {
     if (!builder) return;
     builder->theme.secondary_light = color;
 }
 
-void spark_theme_builder_set_background(SparkThemeBuilder* builder, SDL_Color color) {
+void spark_theme_builder_set_background(SparkThemeBuilder* builder, lv_color_t color) {
     if (!builder) return;
     builder->theme.background = color;
 }
 
-void spark_theme_builder_set_surface(SparkThemeBuilder* builder, SDL_Color color) {
+void spark_theme_builder_set_surface(SparkThemeBuilder* builder, lv_color_t color) {
     if (!builder) return;
     builder->theme.surface = color;
 }
 
-void spark_theme_builder_set_error(SparkThemeBuilder* builder, SDL_Color color) {
+void spark_theme_builder_set_error(SparkThemeBuilder* builder, lv_color_t color) {
     if (!builder) return;
     builder->theme.error = color;
 }
 
-void spark_theme_builder_set_spacing(SparkThemeBuilder* builder, float spacing) {
+void spark_theme_builder_set_spacing(SparkThemeBuilder* builder, lv_coord_t spacing) {
     if (!builder) return;
     builder->theme.spacing_unit = spacing;
 }
 
-void spark_theme_builder_set_border_radius(SparkThemeBuilder* builder, float radius) {
+void spark_theme_builder_set_border_radius(SparkThemeBuilder* builder, lv_coord_t radius) {
     if (!builder) return;
     builder->theme.border_radius = radius;
 }
 
-void spark_theme_builder_set_image_size(SparkThemeBuilder* builder, float size) {
+void spark_theme_builder_set_image_size(SparkThemeBuilder* builder, lv_coord_t size) {
     if (!builder) return;
     builder->theme.image_size = size;
 }
@@ -242,6 +265,7 @@ SparkTheme* spark_theme_builder_build(SparkThemeBuilder* builder) {
     SparkTheme* theme = malloc(sizeof(SparkTheme));
     if (theme) {
         *theme = builder->theme;
+        apply_theme_to_lvgl(theme);
     }
     return theme;
 }

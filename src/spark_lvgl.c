@@ -12,40 +12,52 @@ static int mouse_x = 0, mouse_y = 0;
 static bool has_wheel_event = false;
 static SDL_Event wheel_event;
 
-static void disp_flush(lv_disp_drv_t* disp_drv, const lv_area_t* area, lv_color_t* color_p) {
-    if (!spark.ui_texture) {
-        printf("Error: UI texture is null\n");
-        lv_disp_flush_ready(disp_drv);
-        return;
-    }
+static SDL_Event current_event;
+static bool has_event = false;
 
-    SDL_Rect rect = {
-        .x = area->x1,
-        .y = area->y1,
-        .w = area->x2 - area->x1 + 1,
-        .h = area->y2 - area->y1 + 1
-    };
-    
-    int pitch = rect.w * sizeof(lv_color_t);
-    if (SDL_UpdateTexture(spark.ui_texture, &rect, color_p, pitch) < 0) {
-        printf("Texture update failed: %s\n", SDL_GetError());
+static SparkInput input = {0};
+
+static void process_event(SDL_Event* e) {
+    switch(e->type) {
+        case SDL_MOUSEBUTTONDOWN:
+        case SDL_MOUSEBUTTONUP:
+            if (e->button.button == SDL_BUTTON_LEFT) {
+                mouse_pressed = (e->type == SDL_MOUSEBUTTONDOWN);
+                printf("Mouse button %s\n", mouse_pressed ? "pressed" : "released");
+            }
+            break;
+            
+        case SDL_MOUSEWHEEL:
+            wheel_event = *e;
+            has_wheel_event = true;
+            break;
     }
+}
+// Mouse input handler
+static void mouse_read(lv_indev_drv_t* drv, lv_indev_data_t* data) {
+    // Get current mouse state
+    uint32_t buttons = SDL_GetMouseState(&input.mouse_x, &input.mouse_y);
     
-    lv_disp_flush_ready(disp_drv);
+    // Get window scale for proper coordinate translation
+    float scale_x, scale_y;
+    spark_window_get_scale(&scale_x, &scale_y);
+    
+    // Adjust coordinates based on scale and viewport
+    data->point.x = (lv_coord_t)((input.mouse_x - spark.window_state.viewport.x) / scale_x);
+    data->point.y = (lv_coord_t)((input.mouse_y - spark.window_state.viewport.y) / scale_y);
+    
+    // Set pressed state based on left mouse button
+    data->state = (buttons & SDL_BUTTON_LMASK) ? LV_INDEV_STATE_PRESSED : LV_INDEV_STATE_RELEASED;
 }
 
+// Keyboard input handler
 static void keypad_read(lv_indev_drv_t* drv, lv_indev_data_t* data) {
     data->key = 0;
     data->state = LV_INDEV_STATE_RELEASED;
 
     SDL_Event e;
-    while(SDL_PollEvent(&e)) {
-        switch(e.type) {
-            case SDL_MOUSEWHEEL:
-                wheel_event = e;
-                has_wheel_event = true;
-                return;
-
+    if (SDL_PollEvent(&e)) {
+        switch (e.type) {
             case SDL_TEXTINPUT:
                 data->key = (uint32_t)e.text.text[0];
                 data->state = LV_INDEV_STATE_PRESSED;
@@ -77,31 +89,99 @@ static void keypad_read(lv_indev_drv_t* drv, lv_indev_data_t* data) {
                              LV_INDEV_STATE_RELEASED;
                 break;
 
-            case SDL_MOUSEBUTTONDOWN:
-            case SDL_MOUSEBUTTONUP:
-                if (e.button.button == SDL_BUTTON_LEFT) {
-                    mouse_pressed = (e.type == SDL_MOUSEBUTTONDOWN);
-                }
+            case SDL_MOUSEWHEEL:
+                input.wheel_event = e;
+                input.has_wheel_event = true;
                 break;
         }
     }
 }
 
-static void mouse_read(lv_indev_drv_t* drv, lv_indev_data_t* data) {
-    SDL_GetMouseState(&mouse_x, &mouse_y);
-    data->point.x = mouse_x;
-    data->point.y = mouse_y;
-    data->state = mouse_pressed ? LV_INDEV_STATE_PRESSED : LV_INDEV_STATE_RELEASED;
-}
 
 static void encoder_read(lv_indev_drv_t* drv, lv_indev_data_t* data) {
-    if (has_wheel_event) {
-        data->enc_diff = -wheel_event.wheel.y;
-        has_wheel_event = false;
+    if (input.has_wheel_event) {
+        data->enc_diff = -input.wheel_event.wheel.y;
+        input.has_wheel_event = false;
     } else {
         data->enc_diff = 0;
     }
     data->state = LV_INDEV_STATE_RELEASED;
+}
+
+
+static void disp_flush(lv_disp_drv_t* disp_drv, const lv_area_t* area, lv_color_t* color_p) {
+    if (!spark.ui_texture) {
+        lv_disp_flush_ready(disp_drv);
+        return;
+    }
+
+    SDL_Rect rect = {
+        .x = area->x1,
+        .y = area->y1,
+        .w = area->x2 - area->x1 + 1,
+        .h = area->y2 - area->y1 + 1
+    };
+    
+    // Clear the area to transparent first
+    void* pixels;
+    int pitch;
+    SDL_LockTexture(spark.ui_texture, &rect, &pixels, &pitch);
+    memset(pixels, 0, rect.h * pitch);
+    SDL_UnlockTexture(spark.ui_texture);
+    
+    int update_pitch = rect.w * sizeof(lv_color_t);
+    SDL_UpdateTexture(spark.ui_texture, &rect, color_p, update_pitch);
+    
+    lv_disp_flush_ready(disp_drv);
+}
+
+
+
+// Initialize input handling
+bool spark_input_init(void) {
+    // Create and set default input group
+    input.input_group = lv_group_create();
+    if (!input.input_group) {
+        fprintf(stderr, "Failed to create input group\n");
+        return false;
+    }
+    lv_group_set_default(input.input_group);
+
+    // Initialize mouse driver
+    static lv_indev_drv_t mouse_drv;
+    lv_indev_drv_init(&mouse_drv);
+    mouse_drv.type = LV_INDEV_TYPE_POINTER;
+    mouse_drv.read_cb = mouse_read;
+    input.indev_mouse = lv_indev_drv_register(&mouse_drv);
+    if (!input.indev_mouse) {
+        fprintf(stderr, "Failed to register mouse driver\n");
+        return false;
+    }
+
+    // Initialize keyboard driver
+    static lv_indev_drv_t keypad_drv;
+    lv_indev_drv_init(&keypad_drv);
+    keypad_drv.type = LV_INDEV_TYPE_KEYPAD;
+    keypad_drv.read_cb = keypad_read;
+    input.indev_keypad = lv_indev_drv_register(&keypad_drv);
+    if (input.indev_keypad) {
+        lv_indev_set_group(input.indev_keypad, input.input_group);
+    }
+
+    // Initialize encoder/wheel driver
+    static lv_indev_drv_t encoder_drv;
+    lv_indev_drv_init(&encoder_drv);
+    encoder_drv.type = LV_INDEV_TYPE_ENCODER;
+    encoder_drv.read_cb = encoder_read;
+    input.indev_encoder = lv_indev_drv_register(&encoder_drv);
+    if (input.indev_encoder) {
+        lv_indev_set_group(input.indev_encoder, input.input_group);
+    }
+
+    // Enable text input
+    SDL_StartTextInput();
+
+    return true;
 }
 
 bool spark_lvgl_init(void) {
@@ -121,6 +201,10 @@ bool spark_lvgl_init(void) {
         return false;
     }
 
+    // Clear frame buffers to transparent
+    memset(lvgl.fb1, 0, buffer_size * sizeof(lv_color_t));
+    memset(lvgl.fb2, 0, buffer_size * sizeof(lv_color_t));
+
     // Initialize display buffer
     lv_disp_draw_buf_init(&lvgl.draw_buf, lvgl.fb1, lvgl.fb2, buffer_size);
                          
@@ -139,39 +223,26 @@ bool spark_lvgl_init(void) {
         return false;
     }
 
-    // Create input group
-    lvgl.input_group = lv_group_create();
-    lv_group_set_default(lvgl.input_group);
-
-    // Initialize input devices
-    static lv_indev_drv_t keypad_drv, mouse_drv, encoder_drv;
-
-    // Keypad
-    lv_indev_drv_init(&keypad_drv);
-    keypad_drv.type = LV_INDEV_TYPE_KEYPAD;
-    keypad_drv.read_cb = keypad_read;
-    lvgl.indev_keypad = lv_indev_drv_register(&keypad_drv);
-    if (lvgl.indev_keypad) {
-        lv_indev_set_group(lvgl.indev_keypad, lvgl.input_group);
+    // Initialize input system
+    if (!spark_input_init()) {
+        printf("Failed to initialize input system\n");
+        spark_lvgl_cleanup();
+        return false;
     }
 
-    // Mouse
-    lv_indev_drv_init(&mouse_drv);
-    mouse_drv.type = LV_INDEV_TYPE_POINTER;
-    mouse_drv.read_cb = mouse_read;
-    lvgl.indev_mouse = lv_indev_drv_register(&mouse_drv);
+    // Create UI texture with transparency
+    spark.ui_texture = SDL_CreateTexture(spark.renderer,
+        SDL_PIXELFORMAT_RGBA8888,
+        SDL_TEXTUREACCESS_STREAMING,
+        spark.window_state.base_width,
+        spark.window_state.base_height);
 
-    // Encoder
-    lv_indev_drv_init(&encoder_drv);
-    encoder_drv.type = LV_INDEV_TYPE_ENCODER;
-    encoder_drv.read_cb = encoder_read;
-    lvgl.indev_encoder = lv_indev_drv_register(&encoder_drv);
-    if (lvgl.indev_encoder) {
-        lv_indev_set_group(lvgl.indev_encoder, lvgl.input_group);
-    }
+    SDL_SetTextureBlendMode(spark.ui_texture, SDL_BLENDMODE_BLEND);
 
-    // Set transparent background
-    lv_obj_set_style_bg_opa(lv_scr_act(), LV_OPA_TRANSP, 0);
+    // Set transparent background for LVGL screen
+    lv_obj_t* screen = lv_scr_act();
+    lv_obj_set_style_bg_opa(screen, LV_OPA_0, 0);
+    lv_obj_set_style_bg_color(screen, lv_color_black(), 0);
 
     lvgl.initialized = true;
     printf("LVGL initialization complete\n");
@@ -180,32 +251,16 @@ bool spark_lvgl_init(void) {
 
 void spark_lvgl_update(void) {
     if (!lvgl.initialized) return;
-
-    // Clear with transparency
-    SDL_SetRenderDrawColor(spark.renderer, 0, 0, 0, 0);
-    SDL_RenderClear(spark.renderer);
     
-    // Update LVGL
+    // Update LVGL timers and input
     lv_timer_handler();
     
-    // Render LVGL content
-    SDL_RenderCopy(spark.renderer, spark.ui_texture, NULL, NULL);
-}
-
-void spark_lvgl_cleanup(void) {
-    if (!lvgl.initialized) return;
+    // Make sure to use proper blending
+    SDL_SetTextureBlendMode(spark.ui_texture, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawBlendMode(spark.renderer, SDL_BLENDMODE_BLEND);
     
-    if (lvgl.input_group) {
-        lv_group_del(lvgl.input_group);
-    }
-    
-    free(lvgl.fb1);
-    free(lvgl.fb2);
-    lvgl.fb1 = NULL;
-    lvgl.fb2 = NULL;
-    
-    lv_deinit();
-    lvgl.initialized = false;
+    // Render the UI with transparency
+    SDL_RenderCopy(spark.renderer, spark.ui_texture, NULL, &spark.window_state.viewport);
 }
 
 // Coordinate transformation functions
@@ -238,4 +293,48 @@ void spark_lvgl_get_mouse_position(float* x, float* y) {
     spark_lvgl_screen_to_ui(mx - spark.window_state.viewport.x,
                            my - spark.window_state.viewport.y,
                            x, y);
+}
+
+void spark_input_add_obj(lv_obj_t* obj) {
+    if (input.input_group && obj) {
+        lv_group_add_obj(input.input_group, obj);
+    }
+}
+
+void spark_input_cleanup(void) {
+    SDL_StopTextInput();
+    
+    if (input.input_group) {
+        lv_group_del(input.input_group);
+        input.input_group = NULL;
+    }
+
+    // LVGL will clean up the input devices when lv_deinit() is called
+    input.indev_mouse = NULL;
+    input.indev_keypad = NULL;
+    input.indev_encoder = NULL;
+}
+
+
+void spark_lvgl_cleanup(void) {
+    if (!lvgl.initialized) return;
+    
+    // Cleanup input devices
+    spark_input_cleanup();
+    
+    // Cleanup frame buffers
+    if (lvgl.fb1) {
+        free(lvgl.fb1);
+        lvgl.fb1 = NULL;
+    }
+    
+    if (lvgl.fb2) {
+        free(lvgl.fb2);
+        lvgl.fb2 = NULL;
+    }
+    
+    // Deinitialize LVGL
+    lv_deinit();
+    
+    lvgl.initialized = false;
 }

@@ -2,10 +2,8 @@
 #define SPARK_THEME_H
 
 #include <SDL2/SDL.h>
+#include "lvgl.h"
 #include <stdbool.h>
-
-typedef struct SparkTheme SparkTheme;
-typedef struct SparkThemeBuilder SparkThemeBuilder;
 
 typedef enum {
     SPARK_THEME_PRESET_LIGHT,
@@ -13,65 +11,69 @@ typedef enum {
     SPARK_THEME_PRESET_TEAL
 } SparkThemePreset;
 
-struct SparkTheme {
-    SDL_Color primary;
-    SDL_Color primary_dark;
-    SDL_Color primary_light;
+typedef struct {
+    // LVGL theme
+    lv_theme_t* lv_theme;
     
-    SDL_Color secondary;
-    SDL_Color secondary_dark;
-    SDL_Color secondary_light;
+    // Color palette
+    lv_color_t primary;
+    lv_color_t primary_dark;
+    lv_color_t primary_light;
     
-    SDL_Color background;
-    SDL_Color surface;
-    SDL_Color error;
+    lv_color_t secondary;
+    lv_color_t secondary_dark;
+    lv_color_t secondary_light;
     
-    SDL_Color on_primary;
-    SDL_Color on_secondary;
-    SDL_Color on_background;
-    SDL_Color on_surface;
-    SDL_Color on_error;
+    lv_color_t background;
+    lv_color_t surface;
+    lv_color_t error;
     
-    SDL_Color hover_overlay;
-    SDL_Color pressed_overlay;
-    SDL_Color disabled_overlay;
+    lv_color_t on_primary;
+    lv_color_t on_secondary;
+    lv_color_t on_background;
+    lv_color_t on_surface;
+    lv_color_t on_error;
     
-    uint8_t elevation_levels[9];
+    // State overlays
+    lv_opa_t hover_opacity;
+    lv_opa_t pressed_opacity;
+    lv_opa_t disabled_opacity;
     
-    float spacing_unit;
-    float border_radius;
-    float image_size;
-};
+    // Metrics
+    lv_coord_t spacing_unit;
+    lv_coord_t border_radius;
+    lv_coord_t image_size;
+} SparkTheme;
 
-// Theme management
+typedef struct SparkThemeBuilder SparkThemeBuilder;
+
+// Core theme functions
 void spark_theme_init(void);
 void spark_theme_set_current(const SparkTheme* theme);
 const SparkTheme* spark_theme_get_current(void);
 const SparkTheme* spark_theme_get_default(void);
 
-// Theme creation
+// Theme creation and management
 SparkTheme* spark_theme_create_from_preset(SparkThemePreset preset);
 void spark_theme_free(SparkTheme* theme);
+lv_color_t spark_theme_mix_colors(lv_color_t a, lv_color_t b, uint8_t mix);
 
-// Theme builder
+// Theme builder pattern
 SparkThemeBuilder* spark_theme_builder_new(void);
 SparkThemeBuilder* spark_theme_builder_from_preset(SparkThemePreset preset);
-void spark_theme_builder_set_primary(SparkThemeBuilder* builder, SDL_Color color);
-void spark_theme_builder_set_primary_dark(SparkThemeBuilder* builder, SDL_Color color);
-void spark_theme_builder_set_primary_light(SparkThemeBuilder* builder, SDL_Color color);
-void spark_theme_builder_set_secondary(SparkThemeBuilder* builder, SDL_Color color);
-void spark_theme_builder_set_secondary_dark(SparkThemeBuilder* builder, SDL_Color color);
-void spark_theme_builder_set_secondary_light(SparkThemeBuilder* builder, SDL_Color color);
-void spark_theme_builder_set_background(SparkThemeBuilder* builder, SDL_Color color);
-void spark_theme_builder_set_surface(SparkThemeBuilder* builder, SDL_Color color);
-void spark_theme_builder_set_error(SparkThemeBuilder* builder, SDL_Color color);
-void spark_theme_builder_set_spacing(SparkThemeBuilder* builder, float spacing);
-void spark_theme_builder_set_border_radius(SparkThemeBuilder* builder, float radius);
-void spark_theme_builder_set_image_size(SparkThemeBuilder* builder, float size);
+void spark_theme_builder_set_primary(SparkThemeBuilder* builder, lv_color_t color);
+void spark_theme_builder_set_primary_dark(SparkThemeBuilder* builder, lv_color_t color);
+void spark_theme_builder_set_primary_light(SparkThemeBuilder* builder, lv_color_t color);
+void spark_theme_builder_set_secondary(SparkThemeBuilder* builder, lv_color_t color);
+void spark_theme_builder_set_secondary_dark(SparkThemeBuilder* builder, lv_color_t color);
+void spark_theme_builder_set_secondary_light(SparkThemeBuilder* builder, lv_color_t color);
+void spark_theme_builder_set_background(SparkThemeBuilder* builder, lv_color_t color);
+void spark_theme_builder_set_surface(SparkThemeBuilder* builder, lv_color_t color);
+void spark_theme_builder_set_error(SparkThemeBuilder* builder, lv_color_t color);
+void spark_theme_builder_set_spacing(SparkThemeBuilder* builder, lv_coord_t spacing);
+void spark_theme_builder_set_border_radius(SparkThemeBuilder* builder, lv_coord_t radius);
+void spark_theme_builder_set_image_size(SparkThemeBuilder* builder, lv_coord_t size);
 SparkTheme* spark_theme_builder_build(SparkThemeBuilder* builder);
 void spark_theme_builder_free(SparkThemeBuilder* builder);
 
-// Color utilities
-SDL_Color spark_theme_mix_colors(SDL_Color a, SDL_Color b, float mix);
-
-#endif
+#endif // SPARK_THEME_H

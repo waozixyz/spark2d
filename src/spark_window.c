@@ -95,9 +95,8 @@ void spark_window_update_scale(void) {
     if (spark.ui_texture) {
         SDL_DestroyTexture(spark.ui_texture);
     }
-
     spark.ui_texture = SDL_CreateTexture(spark.renderer,
-        SDL_PIXELFORMAT_ARGB8888,
+        SDL_PIXELFORMAT_RGBA8888,  // Use RGBA instead of ARGB
         SDL_TEXTUREACCESS_STREAMING,
         current_w, current_h);
     SDL_SetTextureBlendMode(spark.ui_texture, SDL_BLENDMODE_BLEND);
