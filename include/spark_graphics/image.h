@@ -1,8 +1,10 @@
+// spark_graphics_image.h
 #ifndef SPARK_GRAPHICS_IMAGE_H
 #define SPARK_GRAPHICS_IMAGE_H
 
 #include "spark_graphics/types.h"
 #include <stdbool.h>
+#include <stddef.h>
 
 // Loading functions
 SparkImage* spark_graphics_load_image(const char* path);
@@ -18,7 +20,6 @@ void spark_graphics_image_free(SparkImage* image);
 float spark_graphics_image_get_aspect_ratio(SparkImage* image);
 void spark_graphics_image_get_size(SparkImage* image, float* width, float* height);
 void spark_graphics_image_set_color(SparkImage* image, float r, float g, float b, float a);
-
 float spark_graphics_image_get_height(SparkImage* image);
 float spark_graphics_image_get_width(SparkImage* image);
 

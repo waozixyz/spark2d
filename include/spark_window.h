@@ -3,7 +3,7 @@
 #ifndef SPARK_WINDOW_H
 #define SPARK_WINDOW_H
 
-#include <SDL3/SDL_rect.h>
+#include <SDL2/SDL_rect.h>
 
 
 typedef enum {

@@ -1,7 +1,7 @@
+// spark2d.c
 #include "spark2d.h"
 #include "internal.h"
-#include <SDL3/SDL.h>
-#include <SDL3_ttf/SDL_ttf.h>
+#include <SDL2/SDL.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -17,109 +17,117 @@
 // Global state
 Spark2D spark = {0};
 static bool should_quit = false;
-
 static bool init_subsystems(const char* title, int width, int height) {
-    if ((int)SDL_Init(SDL_INIT_VIDEO) < 0) {
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) < 0) {
         fprintf(stderr, "SDL init failed: %s\n", SDL_GetError());
         return false;
     }
 
-    if ((int)TTF_Init() < 0) {
-        fprintf(stderr, "TTF init failed: %s\n", SDL_GetError());
-        SDL_Quit();
-        return false;
-    }
-
-    spark.window = SDL_CreateWindow(title, width, height, SDL_WINDOW_RESIZABLE);
+    spark.window = SDL_CreateWindow(title,
+        SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+        width, height,
+        SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+        
     if (!spark.window) {
         fprintf(stderr, "Window creation failed: %s\n", SDL_GetError());
-        TTF_Quit();
         SDL_Quit();
         return false;
     }
 
-    spark.renderer = SDL_CreateRenderer(spark.window, NULL);
+    spark.renderer = SDL_CreateRenderer(spark.window, -1,
+        SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+        
     if (!spark.renderer) {
         fprintf(stderr, "Renderer creation failed: %s\n", SDL_GetError());
         SDL_DestroyWindow(spark.window);
-        TTF_Quit();
         SDL_Quit();
         return false;
     }
+
+    // Enable alpha blending for the renderer
+    SDL_SetRenderDrawBlendMode(spark.renderer, SDL_BLENDMODE_BLEND);
+
+    // Create UI texture with alpha
+    spark.ui_texture = SDL_CreateTexture(spark.renderer,
+        SDL_PIXELFORMAT_RGBA8888,
+        SDL_TEXTUREACCESS_STREAMING,
+        width, height);
+        
+    if (!spark.ui_texture) {
+        fprintf(stderr, "UI texture creation failed: %s\n", SDL_GetError());
+        SDL_DestroyRenderer(spark.renderer);
+        SDL_DestroyWindow(spark.window);
+        SDL_Quit();
+        return false;
+    }
+                                   
+    SDL_SetTextureBlendMode(spark.ui_texture, SDL_BLENDMODE_BLEND);
 
     return true;
 }
 
 static void process_events(void) {
-    SDL_Event sdl_event;
-    
-    spark_event_pump();
-    
-    SparkEvent spark_event;
-    while (spark_event_poll(&spark_event)) {
-        switch (spark_event.type) {
-            case SPARK_EVENT_QUIT:
+    SDL_Event event;
+    while (SDL_PollEvent(&event)) {
+        switch (event.type) {
+            case SDL_QUIT:
                 should_quit = true;
                 #ifdef __EMSCRIPTEN__
                 emscripten_cancel_main_loop();
                 #endif
                 break;
-            case SPARK_EVENT_RESIZE:
-                if (spark.window_state.mode == SPARK_WINDOW_MODE_RESPONSIVE) {
-                    spark_window_update_scale();
+
+            case SDL_WINDOWEVENT:
+                if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
+                    if (spark.window_state.mode == SPARK_WINDOW_MODE_RESPONSIVE) {
+                        spark_window_update_scale();
+                    }
                 }
                 break;
-            default:
-                break;
-        }
-        
-        if (spark_event.data) {
-            free(spark_event.data);
         }
     }
 }
-
-
-
-
 static void update_and_render(float dt) {
-    // Update logic
     if (spark.update) {
         spark.update(dt);
     }
 
-    spark_graphics_begin_frame();
-    
-    // Render
+    // Clear with transparent black instead of opaque black
+    SDL_SetRenderDrawColor(spark.renderer, 0, 0, 0, 0);
+    SDL_RenderClear(spark.renderer);
+
+    // Update LVGL before drawing
+    spark_lvgl_update();
+
+    // Then do any additional drawing
     if (spark.draw) {
         spark.draw();
     }
-
-    spark_graphics_end_frame();  
+    
+    SDL_RenderPresent(spark.renderer);
 }
 
 static void main_loop_iteration(void) {
-    static Uint64 previous = 0;
-    static Uint64 performance_frequency = 0;
+    static uint64_t previous = 0;
+    static uint64_t performance_frequency = 0;
 
     if (previous == 0) {
         previous = SDL_GetPerformanceCounter();
         performance_frequency = SDL_GetPerformanceFrequency();
     }
 
-    if (should_quit) return;
-
-    // Calculate delta time
-    Uint64 current = SDL_GetPerformanceCounter();
+    uint64_t current = SDL_GetPerformanceCounter();
     float dt = (float)((current - previous) * 1000.0 / performance_frequency) / 1000.0f;
     previous = current;
 
     process_events();
-    update_and_render(dt);
 
-    // Frame limiting
-    if (dt < TARGET_FRAME_TIME) {
-        SDL_Delay((Uint32)((TARGET_FRAME_TIME - dt) * 1000.0));
+    if (!should_quit) {
+        update_and_render(dt);
+
+        if (dt < TARGET_FRAME_TIME) {
+            SDL_Delay((uint32_t)((TARGET_FRAME_TIME - dt) * 1000.0f));
+        }
     }
 }
 
@@ -133,10 +141,6 @@ bool spark_init(const char* title, int width, int height) {
         return false;
     }
 
-    spark_event_init();
-    spark_graphics_init();
-
-    // Initialize window state
     spark.window_state = (WindowState){
         .base_width = width,
         .base_height = height,
@@ -146,6 +150,11 @@ bool spark_init(const char* title, int width, int height) {
         .scale_y = 1.0f,
         .viewport = {0, 0, width, height}
     };
+
+    if (!spark_lvgl_init()) {
+        spark_quit();
+        return false;
+    }
 
     return true;
 }
@@ -182,17 +191,20 @@ int spark_run(void) {
     return 0;
 }
 
-
 void spark_quit(void) {
-    spark_event_cleanup();
+    spark_lvgl_cleanup();
+    
+    if (spark.ui_texture) {
+        SDL_DestroyTexture(spark.ui_texture);
+    }
     
     if (spark.renderer) {
-        spark_graphics_cleanup();
         SDL_DestroyRenderer(spark.renderer);
     }
+    
     if (spark.window) {
         SDL_DestroyWindow(spark.window);
     }
-    TTF_Quit();
+    
     SDL_Quit();
 }

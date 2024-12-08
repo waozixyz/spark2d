@@ -1,8 +1,10 @@
+// spark_graphics_types.h
 #ifndef SPARK_GRAPHICS_TYPES_H
 #define SPARK_GRAPHICS_TYPES_H
 
-#include <SDL3/SDL.h>
-#include "spark_font.h"
+#include <SDL2/SDL.h>
+#include <stdbool.h>
+#include "lvgl.h"
 
 typedef enum {
     SPARK_TEXT_ALIGN_LEFT,
@@ -11,12 +13,12 @@ typedef enum {
 } SparkTextAlign;
 
 typedef struct SparkText {
-    SparkFont* font;
     const char* text;
-    SDL_Color color;
+    lv_style_t* style;       // LVGL style for text
     float width;
     float height;
-    SDL_Texture* texture;
+    float scale;
+    SDL_Color color;
 } SparkText;
 
 typedef enum {
@@ -27,14 +29,14 @@ typedef enum {
 } SparkImageFilterMode;
 
 typedef struct {
-    int width;
-    int height;
-    SDL_Texture* texture;
-    SDL_Surface* surface;
-    SDL_Color color_mod;
-    SparkImageFilterMode filter_mode;
-    bool is_svg;
-    char* path;
+    lv_obj_t* img;           // LVGL image object
+    lv_img_dsc_t* img_dsc;   // LVGL image descriptor
+    const void* src_data;    // Original image data
+    float width;
+    float height;
+    bool is_vector;
+    lv_color_t color_mod;    // Color modifier
+    uint8_t opacity;         // Opacity (alpha) value
 } SparkImage;
 
 #endif

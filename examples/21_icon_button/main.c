@@ -29,25 +29,6 @@ void load(void) {
 
     spark_ui_button_set_callback(button, button_callback, NULL);
 }
-
-void update(float dt) {
-    (void)dt;
-    if (button) {
-        spark_ui_button_update(button);
-    }
-}
-
-void draw(void) {
-    spark_graphics_set_color(0.2f, 0.2f, 0.2f);
-    spark_graphics_clear();
-    
-    if (button) {
-        spark_ui_button_draw(button);
-    }
-    
-    spark_graphics_present();
-}
-
 void cleanup(void) {
     if (button) {
         spark_ui_button_free(button);
@@ -67,8 +48,6 @@ int main(void) {
     }
     
     spark_set_load(load);
-    spark_set_update(update);
-    spark_set_draw(draw);
     spark_run();
     
     cleanup();

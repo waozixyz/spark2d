@@ -29,29 +29,14 @@ void load(void) {
     // Optional: set a callback for when an item is selected
     spark_ui_dropdown_set_callback(dropdown, on_item_selected, NULL);
     
-    // Optional: customize the font if needed
-    // SparkFont* custom_font = spark_font_load("path/to/font.ttf", 16);
-    // if (custom_font) {
-    //     spark_ui_dropdown_set_font(dropdown, custom_font);
-    // }
+
 }
 
-void update(float dt) {
-    (void)dt;
-    if (dropdown) {
-        spark_ui_dropdown_update(dropdown);
-    }
-}
 
 void draw(void) {
     // Clear background
     spark_graphics_set_color(0.2f, 0.2f, 0.2f);
     spark_graphics_clear();
-
-    // Draw UI
-    if (dropdown) {
-        spark_ui_dropdown_draw(dropdown);
-    }
 
     // Draw some example text to show current selection
     char buffer[256];
@@ -82,8 +67,6 @@ int main(void) {
     }
 
     spark_set_load(load);
-    spark_set_update(update);
-    spark_set_draw(draw);
     spark_run();
     
     cleanup();

@@ -1,7 +1,7 @@
 #ifndef SPARK_GRAPHICS_CORE_H
 #define SPARK_GRAPHICS_CORE_H
 
-#include <SDL3/SDL.h>
+#include <SDL2/SDL.h>
 
 void spark_graphics_init(void);
 void spark_graphics_cleanup(void);

@@ -1,279 +1,134 @@
+// spark_graphics/text.c
 #include "spark_graphics/text.h"
-#include "spark_graphics/font.h"
 #include "../internal.h"
-#include "internal.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 
-#define FONT_WIDTH 8
-#define FONT_HEIGHT 8
-#define FIRST_CHAR 32
-#define NUM_CHARS 91
-
-static void spark_graphics_draw_char(SparkFont* font, char c, float x, float y);
-
-SparkText* spark_graphics_new_text(SparkFont* font, const char* text) {
+SparkText* spark_graphics_new_text(const char* text) {
     SparkText* txt = malloc(sizeof(SparkText));
     if (!txt) return NULL;
-    txt->font = font ? font : spark_graphics_get_font();
-    txt->color = (SDL_Color){255, 255, 255, 255}; // Default to white
-    txt->text = strdup(text);
-    txt->width = strlen(text) * spark_font_get_width(txt->font);
-    txt->height = spark_font_get_height(txt->font);
-    txt->texture = NULL;
 
-    if (txt->font->type == SPARK_FONT_TYPE_TTF) {
-        SDL_Surface* surface = TTF_RenderText_Solid(txt->font->ttf, txt->text, strlen(txt->text), txt->color);
-        if (surface) {
-            txt->texture = SDL_CreateTextureFromSurface(spark.renderer, surface);
-            txt->width = surface->w;
-            txt->height = surface->h;
-            SDL_DestroySurface(surface);
-        }
+    // Create and initialize style
+    txt->style = malloc(sizeof(lv_style_t));
+    if (!txt->style) {
+        free(txt);
+        return NULL;
     }
-    
+
+    lv_style_init(txt->style);
+    lv_style_set_text_color(txt->style, lv_color_white());
+    lv_style_set_text_font(txt->style, LV_FONT_DEFAULT);
+    lv_style_set_text_opa(txt->style, LV_OPA_COVER);
+
+    txt->text = strdup(text);
+    txt->color = (SDL_Color){255, 255, 255, 255}; // Default white
+    txt->scale = 1.0f;
+
+    // Calculate dimensions
+    lv_point_t size;
+    lv_txt_get_size(&size, text, LV_FONT_DEFAULT, 
+                    0, 0, LV_COORD_MAX, 0);
+    txt->width = size.x;
+    txt->height = size.y;
+
     return txt;
 }
 
-
-
 void spark_graphics_text_draw(SparkText* text, float x, float y) {
-    if (!text || !text->font) {
-        printf("Text or font is NULL\n");
-        return;
-    }
-    
-    if (text->font->type == SPARK_FONT_TYPE_TTF) {
-        if (!text->texture) {
-            SDL_Surface* surface = TTF_RenderText_Solid(text->font->ttf, text->text, strlen(text->text), text->color);
+    if (!text || !text->text || !text->style) return;
 
-            if (!surface) {
-                fprintf(stderr, "Failed to render text: %s\n", SDL_GetError());
-                return;
-            }
-            
-            text->texture = SDL_CreateTextureFromSurface(spark.renderer, surface);
-            text->width = surface->w;
-            text->height = surface->h;
-            SDL_DestroySurface(surface);
-        } else {
-            SDL_FRect dest = {.x = x, .y = y, 
-                            .w = text->width * text->font->scale,
-                            .h = text->height * text->font->scale};
-            int result = SDL_RenderTexture(spark.renderer, text->texture, NULL, &dest);
-            if (result < 0) {
-                SDL_DestroyTexture(text->texture);
-                text->texture = NULL;
-                return;
-            }
-        }
-    } else {
-        uint8_t r, g, b, a;
-        SDL_GetRenderDrawColor(spark.renderer, &r, &g, &b, &a);
-        
-        SDL_SetRenderDrawColor(spark.renderer,
-            text->color.r,
-            text->color.g,
-            text->color.b,
-            text->color.a);
-            
-        float cursor_x = x;
-        for (const char* p = text->text; *p; p++) {
-            spark_graphics_draw_char(text->font, *p, cursor_x, y);
-            cursor_x += spark_font_get_scaled_width(text->font);
-        }
-        
-        SDL_SetRenderDrawColor(spark.renderer, r, g, b, a);
-    }
+    // Create label object
+    lv_obj_t* label = lv_label_create(lv_scr_act());
+    if (!label) return;
+
+    // Apply style and position
+    lv_obj_add_style(label, text->style, 0);
+    lv_obj_set_pos(label, (lv_coord_t)x, (lv_coord_t)y);
+    lv_obj_set_size(label, 
+                    (lv_coord_t)(text->width * text->scale), 
+                    (lv_coord_t)(text->height * text->scale));
+    
+    // Set text
+    lv_label_set_text(label, text->text);
+
+    // Queue deletion after render
+    lv_obj_add_flag(label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_del_async(label);
 }
 
+void spark_graphics_print(const char* text, float x, float y) {
+    SparkText* txt = spark_graphics_new_text(text);
+    if (!txt) return;
+    
+    spark_graphics_text_draw(txt, x, y);
+    spark_graphics_text_free(txt);
+}
 
-void spark_graphics_text_get_scaled_size(SparkText* text, float* width, float* height) {
-    float scale_x, scale_y;
-    spark_window_get_scale(&scale_x, &scale_y);
-    if (width) *width = text->width * scale_x;
-    if (height) *height = text->height * scale_y;
+void spark_graphics_printf(const char* text, float x, float y, float wrap_width, SparkTextAlign align) {
+    SparkText* txt = spark_graphics_new_text(text);
+    if (!txt) return;
+
+    // Configure alignment
+    switch (align) {
+        case SPARK_TEXT_ALIGN_CENTER:
+            lv_style_set_text_align(txt->style, LV_TEXT_ALIGN_CENTER);
+            break;
+        case SPARK_TEXT_ALIGN_RIGHT:
+            lv_style_set_text_align(txt->style, LV_TEXT_ALIGN_RIGHT);
+            break;
+        default:
+            lv_style_set_text_align(txt->style, LV_TEXT_ALIGN_LEFT);
+            break;
+    }
+
+    // Setup wrapping
+    lv_style_set_width(txt->style, (lv_coord_t)wrap_width);
+    
+    spark_graphics_text_draw(txt, x, y);
+    spark_graphics_text_free(txt);
 }
 
 void spark_graphics_text_set_color(SparkText* text, float r, float g, float b, float a) {
+    if (!text || !text->style) return;
+    
     text->color.r = (uint8_t)(r * 255);
     text->color.g = (uint8_t)(g * 255);
     text->color.b = (uint8_t)(b * 255);
     text->color.a = (uint8_t)(a * 255);
+    
+    lv_style_set_text_color(text->style, 
+        lv_color_make(text->color.r, text->color.g, text->color.b));
+    lv_style_set_text_opa(text->style, text->color.a);
 }
 
-void spark_graphics_print(const char* text, float x, float y) {
-    SparkFont* font = spark_graphics_get_font();
-    if (!font) return;
-
-    // Original bitmap font drawing logic moved here
-    float cursor_x = x;
-    for (const char* p = text; *p; p++) {
-        spark_graphics_draw_char(font, *p, cursor_x, y);
-        cursor_x += spark_font_get_scaled_width(font);
-    }
-}
-
-
-static void spark_graphics_draw_char(SparkFont* font, char c, float x, float y) {
-    // Original bitmap drawing logic moved here
-    if (c < FIRST_CHAR || c >= FIRST_CHAR + NUM_CHARS) return;
+void spark_graphics_text_get_scaled_size(SparkText* text, float* width, float* height) {
+    if (!text) return;
     
-    int char_index = c - FIRST_CHAR;
-    float pixel_size = font->scale;
+    float scale_x, scale_y;
+    spark_window_get_scale(&scale_x, &scale_y);
     
-    const unsigned char* char_data = &font->bitmap.font_data[char_index * FONT_HEIGHT];
-    
-    SDL_FRect pixels[FONT_WIDTH * FONT_HEIGHT];
-    int pixel_count = 0;
-    
-    for (int row = 0; row < FONT_HEIGHT; row++) {
-        unsigned char pattern = char_data[row];
-        for (int col = 0; col < FONT_WIDTH; col++) {
-            if (pattern & (0x80 >> col)) {
-                pixels[pixel_count++] = (SDL_FRect){
-                    .x = x + (col * pixel_size),
-                    .y = y + (row * pixel_size),
-                    .w = pixel_size,
-                    .h = pixel_size
-                };
-            }
-        }
-    }
-    
-    if (pixel_count > 0) {
-        SDL_RenderFillRects(spark.renderer, pixels, pixel_count);
-    }
-}
-
-
-void spark_graphics_printf(const char* text, float x, float y, float wrap_width, SparkTextAlign align) {
-    SparkFont* font = spark_graphics_get_font();
-    if (!font || !text) return;
-
-    char line[1024] = {0};  // Buffer for current line
-    int line_start = 0;     // Start of current word in text
-    int last_space = -1;    // Position of last space character
-    int line_length = 0;    // Current line length in characters
-    float line_y = y;       // Current vertical position
-    
-    for (int i = 0; text[i] != '\0'; i++) {
-        char c = text[i];
-        
-        // Handle newline characters
-        if (c == '\n') {
-            line[line_length] = '\0';
-            float line_width = line_length * spark_font_get_scaled_width(font);
-            float line_x = x;
-            
-            // Apply alignment
-            switch (align) {
-                case SPARK_TEXT_ALIGN_CENTER:
-                    line_x = x + (wrap_width - line_width) / 2;
-                    break;
-                case SPARK_TEXT_ALIGN_RIGHT:
-                    line_x = x + wrap_width - line_width;
-                    break;
-                default: // LEFT
-                    break;
-            }
-            
-            spark_graphics_print(line, line_x, line_y);
-            line_y += spark_font_get_scaled_height(font);
-            line_length = 0;
-            line_start = i + 1;
-            last_space = -1;
-            continue;
-        }
-        
-        // Keep track of last space for word wrapping
-        if (c == ' ') {
-            last_space = i;
-        }
-        
-        line[line_length++] = c;
-        float current_width = line_length * spark_font_get_scaled_width(font);
-        
-        // Check if we need to wrap
-        if (current_width > wrap_width) {
-            if (last_space != -1) {
-                // Wrap at last space
-                line[last_space - line_start] = '\0';
-            } else {
-                // Force wrap if no space found
-                line[line_length - 1] = '\0';
-            }
-            
-            float line_width = strlen(line) * spark_font_get_scaled_width(font);
-            float line_x = x;
-            
-            // Apply alignment
-            switch (align) {
-                case SPARK_TEXT_ALIGN_CENTER:
-                    line_x = x + (wrap_width - line_width) / 2;
-                    break;
-                case SPARK_TEXT_ALIGN_RIGHT:
-                    line_x = x + wrap_width - line_width;
-                    break;
-                default: // LEFT
-                    break;
-            }
-            
-            spark_graphics_print(line, line_x, line_y);
-            line_y += spark_font_get_scaled_height(font);
-            
-            if (last_space != -1) {
-                // Start next line after last space
-                i = last_space;
-            }
-            
-            line_length = 0;
-            line_start = i + 1;
-            last_space = -1;
-        }
-    }
-    
-    // Print remaining text
-    if (line_length > 0) {
-        line[line_length] = '\0';
-        float line_width = line_length * spark_font_get_scaled_width(font);
-        float line_x = x;
-        
-        // Apply alignment
-        switch (align) {
-            case SPARK_TEXT_ALIGN_CENTER:
-                line_x = x + (wrap_width - line_width) / 2;
-                break;
-            case SPARK_TEXT_ALIGN_RIGHT:
-                line_x = x + wrap_width - line_width;
-                break;
-            default: // LEFT
-                break;
-        }
-        
-        spark_graphics_print(line, line_x, line_y);
-    }
-}
-
-void spark_graphics_text_free(SparkText* text) {
-    if (text) {
-        if (text->text) {
-            free((void*)text->text);
-        }
-        if (text->texture) {
-            SDL_DestroyTexture(text->texture);
-        }
-        free(text);
-    }
+    if (width) *width = text->width * text->scale * scale_x;
+    if (height) *height = text->height * text->scale * scale_y;
 }
 
 float spark_graphics_text_get_width(SparkText* text) {
-    if (!text) return 0;
-    return text->width;
+    return text ? text->width * text->scale : 0;
 }
 
 float spark_graphics_text_get_height(SparkText* text) {
-    if (!text) return 0;
-    return text->height;
+    return text ? text->height * text->scale : 0;
+}
+
+void spark_graphics_text_free(SparkText* text) {
+    if (!text) return;
+    
+    if (text->style) {
+        lv_style_reset(text->style);
+        free(text->style);
+    }
+    if (text->text) {
+        free((void*)text->text);
+    }
+    free(text);
 }

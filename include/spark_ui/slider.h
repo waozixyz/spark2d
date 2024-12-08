@@ -1,13 +1,26 @@
+// spark_ui_slider.h
 #ifndef SPARK_UI_SLIDER_H
 #define SPARK_UI_SLIDER_H
 
-#include "../common.h"
-#include "spark_font.h"
-#include "spark_graphics.h"
-#include "spark_theme.h"
+#include "../../../deps/lvgl/lvgl.h"
 
-typedef struct SparkSlider SparkSlider;
 typedef void (*SparkSliderCallback)(float value, void* user_data);
+
+typedef struct {
+    lv_obj_t* slider;        // LVGL slider object
+    lv_obj_t* value_label;   // Optional label for showing value
+    lv_style_t* style;       // Slider style
+    float x;
+    float y;
+    float width;
+    float height;
+    float min_value;
+    float max_value;
+    float step;
+    bool show_value;
+    SparkSliderCallback callback;
+    void* user_data;
+} SparkSlider;
 
 // Creation and destruction
 SparkSlider* spark_ui_slider_new(float x, float y, float width, float height);
@@ -29,8 +42,4 @@ float spark_ui_slider_get_step(const SparkSlider* slider);
 void spark_ui_slider_get_position(const SparkSlider* slider, float* x, float* y);
 void spark_ui_slider_get_size(const SparkSlider* slider, float* width, float* height);
 
-// Slider rendering and updates
-void spark_ui_slider_update(SparkSlider* slider);
-void spark_ui_slider_draw(SparkSlider* slider);
-
-#endif /* SPARK_UI_SLIDER_H */
+#endif

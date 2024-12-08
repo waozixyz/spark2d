@@ -40,15 +40,6 @@ void load(void) {
     spark_ui_slider_set_callback(brightness_slider, on_brightness_changed, NULL);
 }
 
-void update(float dt) {
-    (void)dt;
-    if (volume_slider) {
-        spark_ui_slider_update(volume_slider);
-    }
-    if (brightness_slider) {
-        spark_ui_slider_update(brightness_slider);
-    }
-}
 void draw(void) {
     spark_graphics_set_color(0.2f, 0.2f, 0.2f);
     spark_graphics_clear();
@@ -56,13 +47,11 @@ void draw(void) {
     if (volume_slider) {
         spark_graphics_set_color(1.0f, 1.0f, 1.0f);
         spark_graphics_print("Volume:", 50, 30);
-        spark_ui_slider_draw(volume_slider);
     }
 
     if (brightness_slider) {
         spark_graphics_set_color(1.0f, 1.0f, 1.0f);
         spark_graphics_print("Brightness:", 50, 80);
-        spark_ui_slider_draw(brightness_slider);
     }
 
     // Draw current values
@@ -95,7 +84,6 @@ int main(void) {
     }
 
     spark_set_load(load);
-    spark_set_update(update);
     spark_set_draw(draw);
     spark_run();
     

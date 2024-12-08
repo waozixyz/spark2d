@@ -1,10 +1,12 @@
-// graphics/text.h
+// spark_graphics/text.h
 #ifndef SPARK_GRAPHICS_TEXT_H
 #define SPARK_GRAPHICS_TEXT_H
+
 #include "spark_graphics/types.h"
+#include <stdint.h>
 
 // Text object management
-SparkText* spark_graphics_new_text(SparkFont* font, const char* text);
+SparkText* spark_graphics_new_text(const char* text);
 void spark_graphics_text_free(SparkText* text);
 
 // Text properties

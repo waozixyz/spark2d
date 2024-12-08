@@ -1,10 +1,8 @@
 #include "spark_mouse.h"
-#include <SDL3/SDL.h>
-#include "internal.h" 
+#include <SDL2/SDL.h>
+#include "internal.h"
+ 
 
-#ifndef SDL_BUTTON_MASK
-#define SDL_BUTTON_MASK(X)  (1 << ((X)-1))
-#endif
 
 static struct {
     SparkCursor* current_cursor;
@@ -21,9 +19,11 @@ static struct {
 bool spark_mouse_init(void) {
     mouse_state.current_cursor = NULL;
     mouse_state.is_visible = true;
-    SDL_ShowCursor();
+    SDL_ShowCursor(SDL_ENABLE);
     return true;
 }
+
+
 
 void spark_mouse_shutdown(void) {
     if (mouse_state.current_cursor) {
@@ -32,22 +32,22 @@ void spark_mouse_shutdown(void) {
 }
 
 void spark_mouse_get_position(float* x, float* y) {
-    float wx, wy;
+    int wx, wy;
     SDL_GetMouseState(&wx, &wy);
-    if (x) *x = wx;
-    if (y) *y = wy;
+    if (x) *x = (float)wx;
+    if (y) *y = (float)wy;
 }
 
 float spark_mouse_get_x(void) {
-    float x, y;
+    int x, y;
     SDL_GetMouseState(&x, &y);
-    return x;
+    return (float)x;
 }
 
 float spark_mouse_get_y(void) {
-    float x, y;
+    int x, y;
     SDL_GetMouseState(&x, &y);
-    return y;
+    return (float)y;
 }
 
 void spark_mouse_set_position(float x, float y) {
@@ -66,7 +66,7 @@ void spark_mouse_set_y(float y) {
 
 bool spark_mouse_is_down(SparkMouseButton button) {
     uint32_t state = SDL_GetMouseState(NULL, NULL);
-    return (state & SDL_BUTTON_MASK(button)) != 0;
+    return (state & SDL_BUTTON(button)) != 0;
 }
 
 SparkCursor* spark_mouse_get_cursor(void) {
@@ -76,18 +76,18 @@ SparkCursor* spark_mouse_get_cursor(void) {
 SparkCursor* spark_mouse_get_system_cursor(SparkCursorType type) {
     SDL_SystemCursor sdl_type;
     switch (type) {
-        case SPARK_CURSOR_ARROW: sdl_type = SDL_SYSTEM_CURSOR_DEFAULT; break; 
-        case SPARK_CURSOR_IBEAM: sdl_type = SDL_SYSTEM_CURSOR_TEXT; break;
+        case SPARK_CURSOR_ARROW: sdl_type = SDL_SYSTEM_CURSOR_ARROW; break;
+        case SPARK_CURSOR_IBEAM: sdl_type = SDL_SYSTEM_CURSOR_IBEAM; break;
         case SPARK_CURSOR_WAIT: sdl_type = SDL_SYSTEM_CURSOR_WAIT; break;
         case SPARK_CURSOR_CROSSHAIR: sdl_type = SDL_SYSTEM_CURSOR_CROSSHAIR; break;
-        case SPARK_CURSOR_WAITARROW: sdl_type = SDL_SYSTEM_CURSOR_PROGRESS; break; 
-        case SPARK_CURSOR_SIZENWSE: sdl_type = SDL_SYSTEM_CURSOR_NWSE_RESIZE; break;
-        case SPARK_CURSOR_SIZENESW: sdl_type = SDL_SYSTEM_CURSOR_NESW_RESIZE; break;
-        case SPARK_CURSOR_SIZEWE: sdl_type = SDL_SYSTEM_CURSOR_EW_RESIZE; break;
-        case SPARK_CURSOR_SIZENS: sdl_type = SDL_SYSTEM_CURSOR_NS_RESIZE; break;
-        case SPARK_CURSOR_SIZEALL: sdl_type = SDL_SYSTEM_CURSOR_MOVE; break;
-        case SPARK_CURSOR_NO: sdl_type = SDL_SYSTEM_CURSOR_NOT_ALLOWED; break;
-        case SPARK_CURSOR_HAND: sdl_type = SDL_SYSTEM_CURSOR_POINTER; break;
+        case SPARK_CURSOR_WAITARROW: sdl_type = SDL_SYSTEM_CURSOR_WAITARROW; break;
+        case SPARK_CURSOR_SIZENWSE: sdl_type = SDL_SYSTEM_CURSOR_SIZENWSE; break;
+        case SPARK_CURSOR_SIZENESW: sdl_type = SDL_SYSTEM_CURSOR_SIZENESW; break;
+        case SPARK_CURSOR_SIZEWE: sdl_type = SDL_SYSTEM_CURSOR_SIZEWE; break;
+        case SPARK_CURSOR_SIZENS: sdl_type = SDL_SYSTEM_CURSOR_SIZENS; break;
+        case SPARK_CURSOR_SIZEALL: sdl_type = SDL_SYSTEM_CURSOR_SIZEALL; break;
+        case SPARK_CURSOR_NO: sdl_type = SDL_SYSTEM_CURSOR_NO; break;
+        case SPARK_CURSOR_HAND: sdl_type = SDL_SYSTEM_CURSOR_HAND; break;
         default: return NULL;
     }
     
@@ -100,7 +100,7 @@ SparkCursor* spark_mouse_get_system_cursor(SparkCursorType type) {
         return NULL;
     }
 
-    cursor->width = 32;  
+    cursor->width = 32;
     cursor->height = 32;
     cursor->hot_x = 0;
     cursor->hot_y = 0;
@@ -116,10 +116,12 @@ SparkCursor* spark_mouse_new_cursor(const unsigned char* pixels, int width, int 
     SparkCursor* cursor = malloc(sizeof(SparkCursor));
     if (!cursor) return NULL;
 
-    SDL_Surface* surface = SDL_CreateSurfaceFrom(width, height,
-                                                SDL_PIXELFORMAT_RGBA32,
-                                                (void*)pixels,
-                                                width * 4);
+    SDL_Surface* surface = SDL_CreateRGBSurfaceFrom((void*)pixels, width, height, 32,
+                                                   width * 4,
+                                                   0xFF000000,
+                                                   0x00FF0000,
+                                                   0x0000FF00,
+                                                   0x000000FF);
 
     if (!surface) {
         free(cursor);
@@ -127,7 +129,7 @@ SparkCursor* spark_mouse_new_cursor(const unsigned char* pixels, int width, int 
     }
 
     cursor->sdl_cursor = SDL_CreateColorCursor(surface, hot_x, hot_y);
-    SDL_DestroySurface(surface);
+    SDL_FreeSurface(surface);
 
     if (!cursor->sdl_cursor) {
         free(cursor);
@@ -152,7 +154,7 @@ void spark_mouse_set_cursor(SparkCursor* cursor) {
 void spark_mouse_free_cursor(SparkCursor* cursor) {
     if (cursor) {
         if (cursor->sdl_cursor) {
-            SDL_DestroyCursor(cursor->sdl_cursor);
+            SDL_FreeCursor(cursor->sdl_cursor);
         }
         free(cursor);
     }
@@ -164,11 +166,7 @@ bool spark_mouse_is_visible(void) {
 
 void spark_mouse_set_visible(bool visible) {
     mouse_state.is_visible = visible;
-    if (visible) {
-        SDL_ShowCursor();
-    } else {
-        SDL_HideCursor();
-    }
+    SDL_ShowCursor(visible ? SDL_ENABLE : SDL_DISABLE);
 }
 
 bool spark_mouse_is_grabbed(void) {
@@ -177,16 +175,14 @@ bool spark_mouse_is_grabbed(void) {
 
 void spark_mouse_set_grabbed(bool grabbed) {
     mouse_state.is_grabbed = grabbed;
-    SDL_SetWindowMouseGrab(spark.window, grabbed);
+    SDL_SetWindowGrab(spark.window, grabbed ? SDL_TRUE : SDL_FALSE);
 }
 
 bool spark_mouse_get_relative_mode(void) {
     return mouse_state.relative_mode;
 }
+
 void spark_mouse_set_relative_mode(bool enable) {
     mouse_state.relative_mode = enable;
-    if (enable) {
-        float x, y;
-        SDL_GetRelativeMouseState(&x, &y);
-    }
+    SDL_SetRelativeMouseMode(enable ? SDL_TRUE : SDL_FALSE);
 }

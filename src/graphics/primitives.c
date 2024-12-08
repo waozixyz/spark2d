@@ -1,6 +1,6 @@
 #include "spark_graphics/primitives.h"
 #include "../internal.h"
-#include <SDL3/SDL.h>
+#include <SDL2/SDL.h>
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
@@ -12,15 +12,10 @@ static SDL_Vertex* create_vertex_array(const float* positions, int vertex_count)
     SDL_Vertex* vertices = malloc(vertex_count * sizeof(SDL_Vertex));
     if (!vertices) return NULL;
     
-    uint8_t r, g, b, a;
+    Uint8 r, g, b, a;
     SDL_GetRenderDrawColor(spark.renderer, &r, &g, &b, &a);
     
-    SDL_FColor color = {
-        r / 255.0f,
-        g / 255.0f,
-        b / 255.0f,
-        a / 255.0f
-    };
+    SDL_Color color = {r, g, b, a};
     
     for (int i = 0; i < vertex_count; i++) {
         vertices[i].position.x = positions[i * 2];
@@ -34,11 +29,11 @@ static SDL_Vertex* create_vertex_array(const float* positions, int vertex_count)
 }
 
 void spark_graphics_rectangle(const char* mode, float x, float y, float w, float h) {
-    SDL_FRect rect = {x, y, w, h};
+    SDL_Rect rect = {(int)x, (int)y, (int)w, (int)h};
     if (strcmp(mode, "fill") == 0) {
         SDL_RenderFillRect(spark.renderer, &rect);
     } else if (strcmp(mode, "line") == 0) {
-        SDL_RenderRect(spark.renderer, &rect);
+        SDL_RenderDrawRect(spark.renderer, &rect);
     }
 }
 
@@ -54,13 +49,13 @@ void spark_graphics_circle(const char* mode, float x, float y, float radius) {
     
     if (strcmp(mode, "line") == 0) {
         for (int i = 0; i < segments - 1; i++) {
-            SDL_RenderLine(spark.renderer,
-                          pos[i * 2], pos[i * 2 + 1],
-                          pos[(i + 1) * 2], pos[(i + 1) * 2 + 1]);
+            SDL_RenderDrawLine(spark.renderer,
+                          (int)pos[i * 2], (int)pos[i * 2 + 1],
+                          (int)pos[(i + 1) * 2], (int)pos[(i + 1) * 2 + 1]);
         }
-        SDL_RenderLine(spark.renderer,
-                      pos[(segments - 1) * 2], pos[(segments - 1) * 2 + 1],
-                      pos[0], pos[1]);
+        SDL_RenderDrawLine(spark.renderer,
+                      (int)pos[(segments - 1) * 2], (int)pos[(segments - 1) * 2 + 1],
+                      (int)pos[0], (int)pos[1]);
     } else if (strcmp(mode, "fill") == 0) {
         SDL_Vertex* vertices = malloc((segments + 2) * sizeof(SDL_Vertex));
         if (!vertices) {
@@ -68,14 +63,9 @@ void spark_graphics_circle(const char* mode, float x, float y, float radius) {
             return;
         }
         
-        uint8_t r, g, b, a;
+        Uint8 r, g, b, a;
         SDL_GetRenderDrawColor(spark.renderer, &r, &g, &b, &a);
-        SDL_FColor color = {
-            r / 255.0f,
-            g / 255.0f,
-            b / 255.0f,
-            a / 255.0f
-        };
+        SDL_Color color = {r, g, b, a};
         
         // Center vertex
         vertices[0].position.x = x;
@@ -123,7 +113,7 @@ void spark_graphics_arc(const char* mode, float x, float y, float radius,
     
     if (strcmp(mode, "line") == 0) {
         for (int i = 0; i < segments; i++) {
-            SDL_RenderLine(spark.renderer,
+            SDL_RenderDrawLine(spark.renderer,
                           pos[i * 2], pos[i * 2 + 1],
                           pos[(i + 1) * 2], pos[(i + 1) * 2 + 1]);
         }
@@ -145,9 +135,6 @@ void spark_graphics_arc(const char* mode, float x, float y, float radius,
     free(pos);
 }
 
-void spark_graphics_line(float x1, float y1, float x2, float y2) {
-    SDL_RenderLine(spark.renderer, x1, y1, x2, y2);
-}
 void spark_graphics_rounded_rectangle(const char* mode, float x, float y, float w, float h, float radius) {
     // Clamp radius to half the minimum dimension to prevent overlapping
     radius = fminf(radius, fminf(w/2, h/2));
@@ -187,11 +174,11 @@ void spark_graphics_polygon(const char* mode, const float* vertices, int count) 
     
     if (strcmp(mode, "line") == 0) {
         for (int i = 0; i < count - 1; i++) {
-            SDL_RenderLine(spark.renderer,
+            SDL_RenderDrawLine(spark.renderer,
                           vertices[i * 2], vertices[i * 2 + 1],
                           vertices[(i + 1) * 2], vertices[(i + 1) * 2 + 1]);
         }
-        SDL_RenderLine(spark.renderer,
+        SDL_RenderDrawLine(spark.renderer,
                       vertices[(count - 1) * 2], vertices[(count - 1) * 2 + 1],
                       vertices[0], vertices[1]);
     } else if (strcmp(mode, "fill") == 0) {
@@ -222,11 +209,11 @@ void spark_graphics_ellipse(const char* mode, float x, float y, float radiusx, f
     
     if (strcmp(mode, "line") == 0) {
         for (int i = 0; i < segments - 1; i++) {
-            SDL_RenderLine(spark.renderer,
+            SDL_RenderDrawLine(spark.renderer,
                           pos[i * 2], pos[i * 2 + 1],
                           pos[(i + 1) * 2], pos[(i + 1) * 2 + 1]);
         }
-        SDL_RenderLine(spark.renderer,
+        SDL_RenderDrawLine(spark.renderer,
                       pos[(segments - 1) * 2], pos[(segments - 1) * 2 + 1],
                       pos[0], pos[1]);
     } else if (strcmp(mode, "fill") == 0) {
@@ -247,21 +234,25 @@ void spark_graphics_ellipse(const char* mode, float x, float y, float radiusx, f
     free(pos);
 }
 
+
 void spark_graphics_point(float x, float y) {
-    SDL_RenderPoint(spark.renderer, x, y);
+    SDL_RenderDrawPoint(spark.renderer, (int)x, (int)y);
 }
 
+void spark_graphics_line(float x1, float y1, float x2, float y2) {
+    SDL_RenderDrawLine(spark.renderer, (int)x1, (int)y1, (int)x2, (int)y2);
+}
 void spark_graphics_points(const float* points, int count) {
     for (int i = 0; i < count; i++) {
-        SDL_RenderPoint(spark.renderer, points[i * 2], points[i * 2 + 1]);
+        SDL_RenderDrawPoint(spark.renderer, points[i * 2], points[i * 2 + 1]);
     }
 }
 
 void spark_graphics_triangle(const char* mode, float x1, float y1, float x2, float y2, float x3, float y3) {
     if (strcmp(mode, "line") == 0) {
-        SDL_RenderLine(spark.renderer, x1, y1, x2, y2);
-        SDL_RenderLine(spark.renderer, x2, y2, x3, y3);
-        SDL_RenderLine(spark.renderer, x3, y3, x1, y1);
+        SDL_RenderDrawLine(spark.renderer, x1, y1, x2, y2);
+        SDL_RenderDrawLine(spark.renderer, x2, y2, x3, y3);
+        SDL_RenderDrawLine(spark.renderer, x3, y3, x1, y1);
     } else if (strcmp(mode, "fill") == 0) {
         float pos[] = {x1, y1, x2, y2, x3, y3};
         SDL_Vertex* vertices = create_vertex_array(pos, 3);
@@ -275,10 +266,10 @@ void spark_graphics_triangle(const char* mode, float x1, float y1, float x2, flo
 void spark_graphics_quad(const char* mode, float x1, float y1, float x2, float y2, 
                         float x3, float y3, float x4, float y4) {
     if (strcmp(mode, "line") == 0) {
-        SDL_RenderLine(spark.renderer, x1, y1, x2, y2);
-        SDL_RenderLine(spark.renderer, x2, y2, x3, y3);
-        SDL_RenderLine(spark.renderer, x3, y3, x4, y4);
-        SDL_RenderLine(spark.renderer, x4, y4, x1, y1);
+        SDL_RenderDrawLine(spark.renderer, x1, y1, x2, y2);
+        SDL_RenderDrawLine(spark.renderer, x2, y2, x3, y3);
+        SDL_RenderDrawLine(spark.renderer, x3, y3, x4, y4);
+        SDL_RenderDrawLine(spark.renderer, x4, y4, x1, y1);
     } else if (strcmp(mode, "fill") == 0) {
         float tri1_pos[] = {x1, y1, x2, y2, x3, y3};
         float tri2_pos[] = {x1, y1, x3, y3, x4, y4};

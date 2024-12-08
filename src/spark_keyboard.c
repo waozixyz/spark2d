@@ -1,7 +1,6 @@
-// spark_keyboard.c
 #include "spark_keyboard.h"
 #include "internal.h"
-#include <SDL3/SDL.h>
+#include <SDL2/SDL.h>
 
 static struct {
     bool key_repeat_enabled;
@@ -123,18 +122,17 @@ static void init_scancode_mappings(void) {
         spark_to_sdl_scancode[mappings[i].spark] = mappings[i].sdl;
     }
 }
-
 void spark_keyboard_init(void) {
-    init_scancode_mappings();  // Fixed function name
+    init_scancode_mappings();
     keyboard_state.key_repeat_enabled = true;
-    keyboard_state.key_repeat_delay = 400;    // Default delay (ms)
-    keyboard_state.key_repeat_interval = 30;  // Default interval (ms)
+    keyboard_state.key_repeat_delay = 400;
+    keyboard_state.key_repeat_interval = 30;
     keyboard_state.text_input_enabled = false;
 }
 
 void spark_keyboard_shutdown(void) {
     if (keyboard_state.text_input_enabled) {
-        SDL_StopTextInput(spark.window);  // Add window parameter
+        SDL_StopTextInput(); 
     }
 }
 
@@ -143,8 +141,8 @@ void spark_keyboard_update(void) {
 }
 
 bool spark_keyboard_is_down(SparkScancode scancode) {
-    const bool* keyboard_state = SDL_GetKeyboardState(NULL);  // Changed to bool*
-    return keyboard_state[spark_to_sdl_scancode[scancode]];
+    const Uint8* keyboard_state = SDL_GetKeyboardState(NULL);  // SDL2 returns Uint8*
+    return keyboard_state[spark_to_sdl_scancode[scancode]] != 0;
 }
 
 void spark_keyboard_set_key_repeat(bool enable) {
@@ -162,10 +160,10 @@ void spark_keyboard_get_key_repeat(int* delay, int* interval) {
 
 void spark_keyboard_set_text_input(bool enable) {
     if (enable && !keyboard_state.text_input_enabled) {
-        SDL_StartTextInput(spark.window);  // Add window parameter
+        SDL_StartTextInput();  // SDL2 version doesn't take window parameter
         keyboard_state.text_input_enabled = true;
     } else if (!enable && keyboard_state.text_input_enabled) {
-        SDL_StopTextInput(spark.window);   // Add window parameter
+        SDL_StopTextInput();   // SDL2 version doesn't take window parameter
         keyboard_state.text_input_enabled = false;
     }
 }

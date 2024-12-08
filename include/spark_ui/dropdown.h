@@ -1,10 +1,8 @@
+// spark_ui_dropdown.h
 #ifndef SPARK_UI_DROPDOWN_H
 #define SPARK_UI_DROPDOWN_H
 
-#include "../common.h"
-#include "spark_font.h"
-#include "spark_graphics.h"
-#include "spark_theme.h"
+#include <stdbool.h>
 
 typedef struct SparkDropdown SparkDropdown;
 typedef void (*SparkDropdownCallback)(int selected_index, const char* selected_item, void* user_data);
@@ -23,7 +21,6 @@ const char* spark_ui_dropdown_get_selected_text(const SparkDropdown* dropdown);
 
 // Dropdown configuration
 void spark_ui_dropdown_set_callback(SparkDropdown* dropdown, SparkDropdownCallback callback, void* user_data);
-void spark_ui_dropdown_set_font(SparkDropdown* dropdown, SparkFont* font);
 void spark_ui_dropdown_set_position(SparkDropdown* dropdown, float x, float y);
 void spark_ui_dropdown_set_size(SparkDropdown* dropdown, float width, float height);
 
@@ -32,8 +29,4 @@ void spark_ui_dropdown_get_position(const SparkDropdown* dropdown, float* x, flo
 void spark_ui_dropdown_get_size(const SparkDropdown* dropdown, float* width, float* height);
 bool spark_ui_dropdown_is_open(const SparkDropdown* dropdown);
 
-// Dropdown rendering and updates
-void spark_ui_dropdown_update(SparkDropdown* dropdown);
-void spark_ui_dropdown_draw(SparkDropdown* dropdown);
-
-#endif /* SPARK_UI_DROPDOWN_H */
+#endif

@@ -13,7 +13,7 @@ static void on_tab_changed(int tab_index) {
 void load(void) {
     // Minimal builder with just required fields
     SparkTabBarBuilder builder = {
-        .position = SPARK_TAB_BOTTOM,  // Only required field
+        .position = 0,  // Only required field
     };
     
     tabbar = spark_ui_tabbar_build(&builder);
@@ -41,22 +41,6 @@ void load(void) {
     spark_ui_tabbar_set_callback(tabbar, on_tab_changed);
 }
 
-void update(float dt) {
-    (void)dt;
-    if (tabbar) {
-        spark_ui_tabbar_update(tabbar);
-
-    }
-}
-
-void draw(void) {
-    spark_graphics_set_color(0.2f, 0.2f, 0.2f);
-    spark_graphics_clear();
-    if (tabbar) {
-        spark_ui_tabbar_draw(tabbar);
-    }
-    spark_graphics_present();
-}
 
 void cleanup(void) {
     if (tabbar) {
@@ -72,8 +56,6 @@ int main(void) {
         return 1;
     }
     spark_set_load(load);
-    spark_set_update(update);
-    spark_set_draw(draw);
     spark_run();
     cleanup();
     spark_quit();

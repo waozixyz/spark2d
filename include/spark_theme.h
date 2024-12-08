@@ -1,7 +1,7 @@
 #ifndef SPARK_THEME_H
 #define SPARK_THEME_H
 
-#include <SDL3/SDL.h>
+#include <SDL2/SDL.h>
 #include <stdbool.h>
 
 typedef struct SparkTheme SparkTheme;

@@ -1,198 +1,96 @@
+// spark_graphics_image.c
 #include "spark_graphics/image.h"
 #include "../internal.h"
-#include "internal.h"
-#include <SDL3_image/SDL_image.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
+#include "lvgl.h"
 
-// Helper functions
-static SDL_Surface* create_scaled_surface(SDL_Surface* source, int target_width, int target_height) {
-    SDL_Surface* scaled = SDL_CreateSurface(target_width, target_height, SDL_PIXELFORMAT_RGBA32);
-    if (!scaled) {
-        return NULL;
-    }
+SparkImage* spark_graphics_load_image(const char* path) {
+    SparkImage* image = calloc(1, sizeof(SparkImage));
+    if (!image) return NULL;
 
-    SDL_Rect dest = {0, 0, target_width, target_height};
-    if (!SDL_BlitSurfaceScaled(source, NULL, scaled, &dest, SDL_SCALEMODE_NEAREST)) {
-        SDL_DestroySurface(scaled);
-        return NULL;
-    }
-    
-    return scaled;
-}
-
-static void apply_texture_properties(SparkImage* image) {
-    SDL_SetTextureColorMod(image->texture, 
-                          image->color_mod.r,
-                          image->color_mod.g,
-                          image->color_mod.b);
-    SDL_SetTextureAlphaMod(image->texture, image->color_mod.a);
-    SDL_SetTextureBlendMode(image->texture, SDL_BLENDMODE_BLEND);
-}
-static bool update_svg_texture(SparkImage* image, float target_width, float target_height) {
-    if (!image->is_svg || !image->path) return false;
-    if ((int)target_width == image->width && (int)target_height == image->height) return true;
-
-    SDL_IOStream* io = SDL_IOFromFile(image->path, "rb");
-    if (!io) return false;
-
-    SDL_Surface* new_surface = IMG_LoadSizedSVG_IO(io, (int)target_width, (int)target_height);
-    SDL_CloseIO(io);
-    
-    if (!new_surface) return false;
-
-    SDL_Texture* new_texture = SDL_CreateTextureFromSurface(spark.renderer, new_surface);
-    SDL_DestroySurface(new_surface);
-
-    if (!new_texture) return false;
-
-    SDL_DestroyTexture(image->texture);
-    image->texture = new_texture;
-    image->width = (int)target_width;
-    image->height = (int)target_height;
-    
-    return true;
-}
-
-SparkImage* spark_graphics_load_image(const char* path) {    
-    bool is_svg = false;
-    const char* ext = strrchr(path, '.');
-    if (ext && strcmp(ext, ".svg") == 0) {
-        is_svg = true;
-    }
-
-    SDL_Surface* surface = NULL;
-    if (is_svg) {
-        SDL_IOStream* io = SDL_IOFromFile(path, "rb");
-        if (!io) {
-            printf("Failed to open SVG file: %s\n", SDL_GetError());
-            return NULL;
-        }
-        
-        surface = IMG_LoadSVG_IO(io);
-        SDL_CloseIO(io);
-    } else {
-        surface = IMG_Load(path);
-    }
-
-    if (!surface) {
-        printf("Failed to load image: %s\n", SDL_GetError());
-        return NULL;
-    }
-
-    SparkImage* image = malloc(sizeof(SparkImage));
-    if (!image) {
-        SDL_DestroySurface(surface);
-        printf("Failed to allocate image memory\n");
-        return NULL;
-    }
-
-    image->width = surface->w;
-    image->height = surface->h;
-    image->surface = surface;
-    image->is_svg = is_svg;
-    image->color_mod = (SDL_Color){255, 255, 255, 255};
-    image->filter_mode = SPARK_IMAGE_FILTER_NONE;
-    image->path = is_svg ? strdup(path) : NULL;
-    
-    image->texture = SDL_CreateTextureFromSurface(spark.renderer, surface);
-    if (!image->texture) {
-        printf("Failed to create texture: %s\n", SDL_GetError());
-        SDL_DestroySurface(surface);
-        if (image->path) free(image->path);
+    // Create LVGL image object
+    image->img = lv_img_create(lv_scr_act());
+    if (!image->img) {
         free(image);
         return NULL;
     }
 
-    apply_texture_properties(image);
+    // Set image source
+    lv_img_set_src(image->img, path);
+
+    // Get image size
+    lv_coord_t w = lv_obj_get_width(image->img);
+    lv_coord_t h = lv_obj_get_height(image->img);
+    image->width = w;
+    image->height = h;
+
+    // Check if it's a vector image
+    const char* ext = strrchr(path, '.');
+    image->is_vector = (ext && strcmp(ext, ".svg") == 0);
+
+    // Set default color and opacity
+    image->color_mod = lv_color_white();
+    image->opacity = LV_OPA_COVER;
+
     return image;
 }
+
 SparkImage* spark_graphics_new_image_from_memory(const void* data, size_t size) {
-    bool is_svg = false;
-    if (size > 5) {
-        const char* str_data = (const char*)data;
-        if ((strncmp(str_data, "<?xml", 5) == 0) || 
-            (strncmp(str_data, "<svg", 4) == 0)) {
-            is_svg = true;
-        }
-    }
+    SparkImage* image = calloc(1, sizeof(SparkImage));
+    if (!image) return NULL;
 
-    SDL_IOStream* io = SDL_IOFromConstMem(data, size);
-    if (!io) {
-        printf("Failed to create IO from memory: %s\n", SDL_GetError());
-        return NULL;
-    }
-
-    SDL_Surface* surface = IMG_Load_IO(io, true);
-    SDL_CloseIO(io);
-    
-    if (!surface) {
-        printf("Failed to load image from memory: %s\n", SDL_GetError());
-        return NULL;
-    }
-
-    SparkImage* image = malloc(sizeof(SparkImage));
-    if (!image) {
-        SDL_DestroySurface(surface);
-        return NULL;
-    }
-
-    image->width = surface->w;
-    image->height = surface->h;
-    image->surface = surface;
-    image->is_svg = is_svg;
-    image->color_mod = (SDL_Color){255, 255, 255, 255};
-    image->filter_mode = SPARK_IMAGE_FILTER_NONE;
-
-    image->texture = SDL_CreateTextureFromSurface(spark.renderer, surface);
-    if (!image->texture) {
-        SDL_DestroySurface(surface);
+    // Create LVGL image object
+    image->img = lv_img_create(lv_scr_act());
+    if (!image->img) {
         free(image);
         return NULL;
     }
 
-    apply_texture_properties(image);
+    // Store the data and create image descriptor
+    image->src_data = data;
+    image->img_dsc = malloc(sizeof(lv_img_dsc_t));
+    if (!image->img_dsc) {
+        lv_obj_del(image->img);
+        free(image);
+        return NULL;
+    }
+
+    // Initialize image descriptor
+    image->img_dsc->data = data;
+    image->img_dsc->data_size = size;
+    image->img_dsc->header.w = 0;  // Will be set by LVGL
+    image->img_dsc->header.h = 0;  // Will be set by LVGL
+    image->img_dsc->header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA;  // Using ARGB8888 format
+
+    // Set image source
+    lv_img_set_src(image->img, image->img_dsc);
+
+    // Get image size
+    image->width = lv_obj_get_width(image->img);
+    image->height = lv_obj_get_height(image->img);
+
+    // Default properties
+    image->color_mod = lv_color_white();
+    image->opacity = LV_OPA_COVER;
+
     return image;
 }
 
 void spark_graphics_image_draw(SparkImage* image, float x, float y, float w, float h) {
-    if (!image || !image->texture) {
-        printf("Error: Invalid image or texture in draw\n");
-        return;
-    }
+    if (!image || !image->img) return;
 
-    if (image->is_svg) {
-        update_svg_texture(image, w, h);
-    }
-
-    apply_texture_properties(image);
-
-    switch(image->filter_mode) {
-        case SPARK_IMAGE_FILTER_MULTIPLY:
-            // Bind multiply shader
-            break;
-        case SPARK_IMAGE_FILTER_SCREEN:
-            // Bind screen shader
-            break;
-        case SPARK_IMAGE_FILTER_OVERLAY:
-            // Bind overlay shader
-            break;
-        default:
-            break;
-    }
-
-    SDL_FRect dest = {x, y, w, h};
-    SDL_RenderTextureRotated(spark.renderer, image->texture, NULL, &dest, 0.0, NULL, SDL_FLIP_NONE);
+    lv_obj_set_pos(image->img, (lv_coord_t)x, (lv_coord_t)y);
+    lv_obj_set_size(image->img, (lv_coord_t)w, (lv_coord_t)h);
+    lv_obj_set_style_img_recolor(image->img, image->color_mod, 0);
+    lv_obj_set_style_img_opa(image->img, image->opacity, 0);
 }
 
 void spark_graphics_image_draw_scaled(SparkImage* image, float x, float y, float sx, float sy) {
-    if (!image || !image->texture) {
-        printf("Error: Invalid image or texture in draw_scaled\n");
-        return;
-    }
-
+    if (!image || !image->img) return;
+    
     float w = image->width * sx;
     float h = image->height * sy;
     spark_graphics_image_draw(image, x, y, w, h);
@@ -200,81 +98,63 @@ void spark_graphics_image_draw_scaled(SparkImage* image, float x, float y, float
 
 void spark_graphics_image_draw_rotated(SparkImage* image, float x, float y, float r, 
                                      float sx, float sy, float ox, float oy) {
-    if (!image || !image->texture) {
-        printf("Error: Invalid image or texture in draw_rotated\n");
-        return;
-    }
+    if (!image || !image->img) return;
 
     float w = image->width * sx;
     float h = image->height * sy;
-
-    if (image->is_svg) {
-        update_svg_texture(image, w, h);
-    }
-
-    apply_texture_properties(image);
-
-    SDL_FPoint origin = {ox, oy};
-    SDL_FRect dest = {x - ox * sx, y - oy * sy, w, h};
-    SDL_RenderTextureRotated(spark.renderer, image->texture, NULL, &dest, 
-                            r * (180.0f / M_PI), &origin, SDL_FLIP_NONE);
+    
+    // In LVGL 8.2, we use transform_angle but don't have pivot support
+    lv_obj_set_pos(image->img, (lv_coord_t)(x - ox * sx), (lv_coord_t)(y - oy * sy));
+    lv_obj_set_size(image->img, (lv_coord_t)w, (lv_coord_t)h);
+    lv_obj_set_style_transform_angle(image->img, (int16_t)(r * 180.0f / M_PI * 10), 0);
+    
+    // Note: LVGL 8.2 doesn't support transform pivot directly
+    // We compensate for this by adjusting the position
 }
 
 void spark_graphics_image_free(SparkImage* image) {
     if (!image) return;
 
-    if (image->texture) {
-        SDL_DestroyTexture(image->texture);
-        image->texture = NULL;
+    if (image->img) {
+        lv_obj_del(image->img);
     }
-    if (image->surface) {
-        SDL_DestroySurface(image->surface);
-        image->surface = NULL;
-    }
-    if (image->path) {
-        free(image->path);
-        image->path = NULL;
+    if (image->img_dsc) {
+        free(image->img_dsc);
     }
     free(image);
 }
 
 float spark_graphics_image_get_aspect_ratio(SparkImage* image) {
     if (!image || image->height <= 0) return 1.0f;
-    return (float)image->width / (float)image->height;
+    return image->width / image->height;
 }
 
 void spark_graphics_image_get_size(SparkImage* image, float* width, float* height) {
     if (!image) {
-        *width = 0;
-        *height = 0;
+        if (width) *width = 0;
+        if (height) *height = 0;
         return;
     }
-    *width = image->width;
-    *height = image->height;
-}
-
-float spark_graphics_image_get_height(SparkImage* image) {
-    if (!image) return 0;
-    return image->height;
-}
-
-float spark_graphics_image_get_width(SparkImage* image) {
-    if (!image) return 0;
-    return image->width;
+    if (width) *width = image->width;
+    if (height) *height = image->height;
 }
 
 void spark_graphics_image_set_color(SparkImage* image, float r, float g, float b, float a) {
-    if (!image || !image->texture) return;
+    if (!image || !image->img) return;
 
-    image->color_mod.r = (uint8_t)(r * 255.0f);
-    image->color_mod.g = (uint8_t)(g * 255.0f);
-    image->color_mod.b = (uint8_t)(b * 255.0f);
-    image->color_mod.a = (uint8_t)(a * 255.0f);
+    image->color_mod = lv_color_make((uint8_t)(r * 255), 
+                                    (uint8_t)(g * 255), 
+                                    (uint8_t)(b * 255));
+    image->opacity = (uint8_t)(a * 255);
 
-    apply_texture_properties(image);
+    lv_obj_set_style_img_recolor(image->img, image->color_mod, 0);
+    lv_obj_set_style_img_opa(image->img, image->opacity, 0);
 }
 
-void spark_graphics_image_set_filter(SparkImage* image, SparkImageFilterMode mode) {
-    if (!image) return;
-    image->filter_mode = mode;
+float spark_graphics_image_get_height(SparkImage* image) {
+    return image ? image->height : 0;
+}
+
+float spark_graphics_image_get_width(SparkImage* image) {
+    return image ? image->width : 0;
 }

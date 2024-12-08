@@ -2,7 +2,6 @@
 #ifndef SPARK2D_H
 #define SPARK2D_H
 
-#include "spark_font.h"
 #include "spark_graphics.h"
 #include "spark_window.h"
 #include "spark_event.h"

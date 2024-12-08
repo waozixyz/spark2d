@@ -1,5 +1,5 @@
 #include "spark_filesystem.h"
-#include <SDL3/SDL.h>
+#include <SDL2/SDL.h>
 #include <sys/stat.h>
 #include <dirent.h>
 #include <string.h>

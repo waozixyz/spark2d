@@ -3,7 +3,6 @@
 
 #include <stddef.h>
 #include <stdbool.h>
-
 #define MAX_CUSTOM_HANDLERS 64
 
 // First, declare all forward declarations
