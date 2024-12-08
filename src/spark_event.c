@@ -129,10 +129,6 @@ void spark_event_clear(void) {
     event_system.head = event_system.tail = 0;
 }
 
-void spark_event_pump(void) {
-    lv_timer_handler();
-}
-
 bool spark_event_poll(SparkEvent* out_event) {
     if (event_system.size == 0) {
         return false;

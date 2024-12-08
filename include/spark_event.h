@@ -84,7 +84,6 @@ typedef struct {
 void spark_event_init(void);
 void spark_event_cleanup(void);
 void spark_event_clear(void);
-void spark_event_pump(void);
 bool spark_event_poll(SparkEvent* out_event);
 bool spark_event_wait(SparkEvent* out_event);
 bool spark_event_push(SparkEventType type, void* data, size_t data_size);

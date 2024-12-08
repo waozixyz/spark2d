@@ -20,12 +20,26 @@ static void spark_configure(void) {
     spark.window_state.base_height = atoi(getenv("SPARK_WINDOW_HEIGHT") ? : "480");
 }
 
-
 static void init_display(void) {
-    #if LV_USE_SDL
-        spark.display = lv_sdl_window_create(spark.window_state.base_width, 
-                                           spark.window_state.base_height);
-    #endif
+#if LV_USE_SDL
+
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+        fprintf(stderr, "SDL initialization failed: %s\n", SDL_GetError());
+        return;
+    }
+
+// Create LVGL display with transparency
+    spark.display = lv_sdl_window_create(spark.window_state.base_width,
+                                       spark.window_state.base_height);
+
+    // Make LVGL background transparent
+    lv_obj_set_style_bg_opa(lv_screen_active(), LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_display_set_color_format(spark.display, LV_COLOR_FORMAT_ARGB8888);
+
+    // Get the UI renderer and set its blend mode
+    spark.renderer = lv_sdl_window_get_renderer(spark.display);
+    SDL_SetRenderDrawBlendMode(spark.renderer, SDL_BLENDMODE_BLEND);
+#endif
 }
 
 #if LV_USE_SDL
@@ -82,17 +96,23 @@ static void main_loop_iteration(void) {
         }
     #endif
     
+    // Clear the SDL renderer
+    //SDL_SetRenderDrawColor(spark.renderer, 0, 0, 0, 255);
+    //SDL_RenderClear(spark.renderer);
+
     if (spark.update) {
         spark.update(1.0f / 60.0f);
     }
-    
+
     if (spark.draw) {
         spark.draw();
     }
-    
+
+    // Present SDL renderer
+    //SDL_RenderPresent(spark.renderer);
+
     usleep(idle_time * 1000);
 }
-
 void spark_set_load(void (*load)(void)) {
     spark.load = load;
 }
