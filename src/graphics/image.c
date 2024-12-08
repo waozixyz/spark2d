@@ -18,6 +18,10 @@ SparkImage* spark_graphics_load_image(const char* path) {
         return NULL;
     }
 
+    // Check if it's an SVG file
+    const char* ext = strrchr(path, '.');
+    image->is_vector = (ext && strcasecmp(ext, ".svg") == 0);
+
     // Set image source
     lv_img_set_src(image->img, path);
 
@@ -27,13 +31,13 @@ SparkImage* spark_graphics_load_image(const char* path) {
     image->width = w;
     image->height = h;
 
-    // Check if it's a vector image
-    const char* ext = strrchr(path, '.');
-    image->is_vector = (ext && strcmp(ext, ".svg") == 0);
-
-    // Set default color and opacity
+    // Set default properties
     image->color_mod = lv_color_white();
     image->opacity = LV_OPA_COVER;
+
+    // Configure image properties
+    lv_obj_clear_flag(image->img, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_style_img_recolor_opa(image->img, LV_OPA_COVER, 0);
 
     return image;
 }
@@ -63,7 +67,7 @@ SparkImage* spark_graphics_new_image_from_memory(const void* data, size_t size) 
     image->img_dsc->data_size = size;
     image->img_dsc->header.w = 0;  // Will be set by LVGL
     image->img_dsc->header.h = 0;  // Will be set by LVGL
-    image->img_dsc->header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA;  // Using ARGB8888 format
+    image->img_dsc->header.cf = LV_COLOR_FORMAT_ARGB8888;  // Using ARGB8888 format
 
     // Set image source
     lv_img_set_src(image->img, image->img_dsc);
@@ -76,16 +80,30 @@ SparkImage* spark_graphics_new_image_from_memory(const void* data, size_t size) 
     image->color_mod = lv_color_white();
     image->opacity = LV_OPA_COVER;
 
+    // Configure image properties
+    lv_obj_clear_flag(image->img, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_style_img_recolor_opa(image->img, LV_OPA_COVER, 0);
+
     return image;
 }
 
 void spark_graphics_image_draw(SparkImage* image, float x, float y, float w, float h) {
     if (!image || !image->img) return;
 
+    // Update position and size
     lv_obj_set_pos(image->img, (lv_coord_t)x, (lv_coord_t)y);
     lv_obj_set_size(image->img, (lv_coord_t)w, (lv_coord_t)h);
+
+    // Update appearance
     lv_obj_set_style_img_recolor(image->img, image->color_mod, 0);
     lv_obj_set_style_img_opa(image->img, image->opacity, 0);
+
+    if (image->is_vector) {
+        // For SVGs, we need to set zoom level based on size
+        float zoom_x = (w * 256.0f) / image->width;
+        float zoom_y = (h * 256.0f) / image->height;
+        lv_img_set_zoom(image->img, (uint16_t)fminf(zoom_x, zoom_y));
+    }
 }
 
 void spark_graphics_image_draw_scaled(SparkImage* image, float x, float y, float sx, float sy) {
@@ -103,13 +121,25 @@ void spark_graphics_image_draw_rotated(SparkImage* image, float x, float y, floa
     float w = image->width * sx;
     float h = image->height * sy;
     
-    // In LVGL 8.2, we use transform_angle but don't have pivot support
-    lv_obj_set_pos(image->img, (lv_coord_t)(x - ox * sx), (lv_coord_t)(y - oy * sy));
-    lv_obj_set_size(image->img, (lv_coord_t)w, (lv_coord_t)h);
-    lv_obj_set_style_transform_angle(image->img, (int16_t)(r * 180.0f / M_PI * 10), 0);
+    // Calculate pivot point offset
+    float px = ox * sx;
+    float py = oy * sy;
     
-    // Note: LVGL 8.2 doesn't support transform pivot directly
-    // We compensate for this by adjusting the position
+    // Position adjusted for pivot
+    lv_obj_set_pos(image->img, (lv_coord_t)(x - px), (lv_coord_t)(y - py));
+    lv_obj_set_size(image->img, (lv_coord_t)w, (lv_coord_t)h);
+    
+    // Set rotation (LVGL uses tenths of degrees)
+    float angle = r * 180.0f / (float)M_PI * 10.0f;
+    lv_obj_set_style_transform_angle(image->img, (int16_t)angle, 0);
+    
+    // Set pivot point
+    lv_obj_set_style_transform_pivot_x(image->img, (lv_coord_t)px, 0);
+    lv_obj_set_style_transform_pivot_y(image->img, (lv_coord_t)py, 0);
+    
+    // Update appearance
+    lv_obj_set_style_img_recolor(image->img, image->color_mod, 0);
+    lv_obj_set_style_img_opa(image->img, image->opacity, 0);
 }
 
 void spark_graphics_image_free(SparkImage* image) {
@@ -126,7 +156,7 @@ void spark_graphics_image_free(SparkImage* image) {
 
 float spark_graphics_image_get_aspect_ratio(SparkImage* image) {
     if (!image || image->height <= 0) return 1.0f;
-    return image->width / image->height;
+    return (float)image->width / image->height;
 }
 
 void spark_graphics_image_get_size(SparkImage* image, float* width, float* height) {
@@ -145,16 +175,16 @@ void spark_graphics_image_set_color(SparkImage* image, float r, float g, float b
     image->color_mod = lv_color_make((uint8_t)(r * 255), 
                                     (uint8_t)(g * 255), 
                                     (uint8_t)(b * 255));
-    image->opacity = (uint8_t)(a * 255);
+    image->opacity = (lv_opa_t)(a * 255);
 
     lv_obj_set_style_img_recolor(image->img, image->color_mod, 0);
     lv_obj_set_style_img_opa(image->img, image->opacity, 0);
 }
 
 float spark_graphics_image_get_height(SparkImage* image) {
-    return image ? image->height : 0;
+    return image ? (float)image->height : 0;
 }
 
 float spark_graphics_image_get_width(SparkImage* image) {
-    return image ? image->width : 0;
+    return image ? (float)image->width : 0;
 }

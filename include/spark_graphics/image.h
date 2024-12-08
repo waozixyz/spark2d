@@ -5,6 +5,7 @@
 #include "spark_graphics/types.h"
 #include <stdbool.h>
 #include <stddef.h>
+#include "lvgl.h"
 
 // Loading functions
 SparkImage* spark_graphics_load_image(const char* path);

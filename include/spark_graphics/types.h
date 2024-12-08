@@ -28,15 +28,15 @@ typedef enum {
     SPARK_IMAGE_FILTER_OVERLAY
 } SparkImageFilterMode;
 
-typedef struct {
-    lv_obj_t* img;           // LVGL image object
-    lv_img_dsc_t* img_dsc;   // LVGL image descriptor
-    const void* src_data;    // Original image data
-    float width;
-    float height;
-    bool is_vector;
-    lv_color_t color_mod;    // Color modifier
-    uint8_t opacity;         // Opacity (alpha) value
+typedef struct SparkImage {
+    lv_obj_t* img;              // LVGL image object
+    const void* src_data;       // Source data for memory images
+    lv_img_dsc_t* img_dsc;     // Image descriptor for memory images
+    lv_coord_t width;           // Image width
+    lv_coord_t height;          // Image height
+    bool is_vector;             // Is this an SVG image?
+    lv_color_t color_mod;       // Color modifier
+    lv_opa_t opacity;          // Opacity
 } SparkImage;
 
 #endif

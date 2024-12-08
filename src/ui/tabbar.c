@@ -1,4 +1,3 @@
-// spark_ui_tabbar.c
 #include "spark_ui/tabbar.h"
 #include "../internal.h"
 #include <stdlib.h>
@@ -7,7 +6,7 @@
 static void tab_change_event_cb(lv_event_t* e) {
     SparkTabBar* tabbar = (SparkTabBar*)lv_event_get_user_data(e);
     if (tabbar && tabbar->callback) {
-        int tab_index = lv_tabview_get_tab_act(tabbar->tabview);
+        int tab_index = lv_tabview_get_tab_active(tabbar->tabview);
         tabbar->callback(tab_index);
     }
 }
@@ -16,9 +15,8 @@ SparkTabBar* spark_ui_tabbar_build(const SparkTabBarBuilder* builder) {
     SparkTabBar* tabbar = calloc(1, sizeof(SparkTabBar));
     if (!tabbar) return NULL;
 
-    // Create the LVGL tabview with proper parameters for v8.2
-    tabbar->tabview = lv_tabview_create(lv_scr_act(), builder->position, 
-                                      (lv_coord_t)builder->height);
+    // Create the LVGL tabview with the new API
+    tabbar->tabview = lv_tabview_create(lv_scr_act());
     if (!tabbar->tabview) {
         free(tabbar);
         return NULL;
@@ -41,7 +39,7 @@ SparkTabBar* spark_ui_tabbar_build(const SparkTabBarBuilder* builder) {
     lv_style_set_pad_all(style, 10);
 
     tabbar->style = style;
-    lv_obj_add_style(lv_tabview_get_tab_btns(tabbar->tabview), style, 0);
+    lv_obj_add_style(lv_tabview_get_tab_bar(tabbar->tabview), style, 0);
 
     // Store configuration
     tabbar->callback = builder->callback;
@@ -52,6 +50,14 @@ SparkTabBar* spark_ui_tabbar_build(const SparkTabBarBuilder* builder) {
     lv_obj_set_pos(tabbar->tabview, (lv_coord_t)builder->max_width, (lv_coord_t)builder->height);
     if (builder->max_width > 0) {
         lv_obj_set_width(tabbar->tabview, (lv_coord_t)builder->max_width);
+    }
+
+    // Set tab bar position
+    lv_tabview_set_tab_bar_position(tabbar->tabview, builder->position);
+    
+    // Set tab bar size if specified
+    if (builder->height > 0) {
+        lv_tabview_set_tab_bar_size(tabbar->tabview, (int32_t)builder->height);
     }
 
     // Add event handler for tab changes
@@ -88,7 +94,6 @@ void spark_ui_tabbar_add_tab(SparkTabBar* tabbar, const SparkTabConfig* config) 
         lv_obj_add_flag(tab, LV_OBJ_FLAG_HIDDEN);
     }
 }
-
 
 void spark_ui_tabbar_add_group(SparkTabBar* tabbar, const SparkTabGroup* group) {
     if (!group) return;
@@ -130,12 +135,12 @@ void spark_ui_tabbar_get_size(SparkTabBar* tabbar, float* width, float* height) 
 
 void spark_ui_tabbar_set_active_tab(SparkTabBar* tabbar, int index) {
     if (!tabbar || !tabbar->tabview) return;
-    lv_tabview_set_act(tabbar->tabview, (uint32_t)index, LV_ANIM_ON);
+    lv_tabview_set_active(tabbar->tabview, (uint32_t)index, LV_ANIM_ON);
 }
 
 int spark_ui_tabbar_get_active_tab(const SparkTabBar* tabbar) {
     if (!tabbar || !tabbar->tabview) return -1;
-    return (int)lv_tabview_get_tab_act(tabbar->tabview);
+    return (int)lv_tabview_get_tab_active(tabbar->tabview);
 }
 
 void spark_ui_tabbar_free(SparkTabBar* tabbar) {

@@ -1,96 +1,132 @@
-# Dependency paths
-DEPS_DIR=deps
-SDL_PATH=$(DEPS_DIR)/SDL
-LVGL_DIR=$(DEPS_DIR)
-LVGL_DIR_NAME=lvgl
-LVGL_PATH=$(LVGL_DIR)/$(LVGL_DIR_NAME)
+CC ?= gcc
+EMCC = emcc
+LVGL_DIR_NAME ?= lvgl
+DEPS_DIR = deps
+LVGL_DIR = $(DEPS_DIR)/$(LVGL_DIR_NAME)
+SDL_PATH = $(DEPS_DIR)/SDL
+
+# Warning flags from LVGL example
+WARNINGS := -Wall -Wshadow -Wundef -Wmissing-prototypes -Wno-discarded-qualifiers -Wextra \
+    -Wno-unused-function -Wno-error=strict-prototypes -Wpointer-arith -fno-strict-aliasing \
+    -Wno-error=cpp -Wuninitialized -Wmaybe-uninitialized -Wno-unused-parameter \
+    -Wno-missing-field-initializers -Wtype-limits -Wsizeof-pointer-memaccess \
+    -Wno-format-nonliteral -Wno-cast-qual -Wunreachable-code -Wno-switch-default \
+    -Wreturn-type -Wmultichar -Wformat-security -Wno-ignored-qualifiers \
+    -Wno-error=pedantic -Wno-sign-compare -Wno-error=missing-prototypes \
+    -Wdouble-promotion -Wclobbered -Wdeprecated -Wempty-body -Wshift-negative-value \
+    -Wstack-usage=2048 -Wno-unused-value -std=gnu99
+
+# Include paths
+INCLUDES := -I./include \
+    -I$(SDL_PATH)/include \
+    -I$(LVGL_DIR) \
+    -I$(LVGL_DIR)/src \
+    -I.
+
+# Basic CFLAGS
+CFLAGS ?= -O3 -g0 $(INCLUDES) $(WARNINGS)
+
+# Emscripten flags
+EM_FLAGS = -s USE_SDL=2 -s WASM=1 \
+    -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' \
+    -s EXPORTED_FUNCTIONS='["_main"]' \
+    -s ALLOW_MEMORY_GROWTH=1
 
 # Include LVGL's make configuration
-include $(LVGL_DIR)/$(LVGL_DIR_NAME)/lvgl.mk
+include $(LVGL_DIR)/lvgl.mk
 
-CC=gcc
-EMCC=emcc
+# Library name
+LIB = libspark2d.a
+WEB_LIB = libspark2d_web.a
+BUILD_DIR = build
+OBJ_DIR = $(BUILD_DIR)/obj
+WEB_OBJ_DIR = $(BUILD_DIR)/web_obj
 
-CFLAGS=-Wall -Wextra -fPIC \
--I./include \
--I$(SDL_PATH)/include \
--I$(LVGL_DIR) \
--I$(LVGL_PATH) \
--I$(LVGL_PATH)/src \
--I. \
+# Source directories
+SRC_DIR = src
+GRAPHICS_DIR = $(SRC_DIR)/graphics
+UI_DIR = $(SRC_DIR)/ui
+BACKENDS_DIR = backends
 
-LDFLAGS=-L$(SDL_PATH)/build \
-$(LVGL_CFLAGS) \
--lSDL2 -lm
+# Collect source files
+SOURCES = $(wildcard $(SRC_DIR)/*.c)
+GRAPHICS_SOURCES = $(wildcard $(GRAPHICS_DIR)/*.c)
+UI_SOURCES = $(wildcard $(UI_DIR)/*.c)
+BACKENDS_SOURCES = $(wildcard $(BACKENDS_DIR)/*.c)
 
-EM_FLAGS=-s USE_SDL=2 -s WASM=1 \
--s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' \
--s EXPORTED_FUNCTIONS='["_main"]' \
--s ALLOW_MEMORY_GROWTH=1
+# Generate object files list
+OBJS = $(patsubst %.c,$(OBJ_DIR)/%.o,$(notdir $(SOURCES)))
+GRAPHICS_OBJS = $(patsubst %.c,$(OBJ_DIR)/graphics/%.o,$(notdir $(GRAPHICS_SOURCES)))
+UI_OBJS = $(patsubst %.c,$(OBJ_DIR)/ui/%.o,$(notdir $(UI_SOURCES)))
+BACKENDS_OBJS = $(patsubst %.c,$(OBJ_DIR)/backends/%.o,$(notdir $(BACKENDS_SOURCES)))
 
-LIB=libspark2d.a
-SRC_DIR=src
-OBJ_DIR=obj
-WEB_OBJ_DIR=$(OBJ_DIR)/web
+# Web object files
+WEB_OBJS = $(patsubst %.c,$(WEB_OBJ_DIR)/%.o,$(notdir $(SOURCES)))
+WEB_GRAPHICS_OBJS = $(patsubst %.c,$(WEB_OBJ_DIR)/graphics/%.o,$(notdir $(GRAPHICS_SOURCES)))
+WEB_UI_OBJS = $(patsubst %.c,$(WEB_OBJ_DIR)/ui/%.o,$(notdir $(UI_SOURCES)))
+WEB_BACKENDS_OBJS = $(patsubst %.c,$(WEB_OBJ_DIR)/backends/%.o,$(notdir $(BACKENDS_SOURCES)))
 
-SOURCES = \
-$(SRC_DIR)/spark_core.c \
-$(SRC_DIR)/spark_theme.c \
-$(SRC_DIR)/spark_window.c \
-$(SRC_DIR)/spark_mouse.c \
-$(SRC_DIR)/spark_keyboard.c \
-$(SRC_DIR)/spark_timer.c \
-$(SRC_DIR)/spark_event.c \
-$(SRC_DIR)/spark_filesystem.c \
-$(SRC_DIR)/spark_lvgl.c \
-$(SRC_DIR)/spark_audio.c
+# Combine all objects
+ALL_OBJS = $(OBJS) $(GRAPHICS_OBJS) $(UI_OBJS) $(BACKENDS_OBJS) $(LVGL_OBJS)
+ALL_WEB_OBJS = $(WEB_OBJS) $(WEB_GRAPHICS_OBJS) $(WEB_UI_OBJS) $(WEB_BACKENDS_OBJS)
 
-GRAPHICS_SOURCES = \
-$(SRC_DIR)/graphics/core.c \
-$(SRC_DIR)/graphics/primitives.c \
-$(SRC_DIR)/graphics/text.c \
-$(SRC_DIR)/graphics/image.c \
-$(SRC_DIR)/graphics/color.c
+# Targets
+.PHONY: all clean dirs web
 
-UI_SOURCES = \
-$(SRC_DIR)/ui/label.c \
-$(SRC_DIR)/ui/button.c \
-$(SRC_DIR)/ui/dropdown.c \
-$(SRC_DIR)/ui/tabbar.c \
-$(SRC_DIR)/ui/slider.c
+all: dirs $(LIB)
 
-ALL_SOURCES = $(SOURCES) $(GRAPHICS_SOURCES) $(UI_SOURCES) $(BACKEND_SOURCES)
-OBJ=$(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SOURCES) $(GRAPHICS_SOURCES) $(UI_SOURCES))
-LVGL_OBJ=$(LVGL_CSRCS:.c=.o)
-WEB_OBJ=$(patsubst $(SRC_DIR)/%.c,$(WEB_OBJ_DIR)/%.o,$(ALL_SOURCES))
+web: dirs $(WEB_LIB)
 
-.PHONY: all clean web_lib deps
-
-all: deps $(LIB)
-
-makedirs:
+dirs:
+	@mkdir -p $(OBJ_DIR)/graphics
 	@mkdir -p $(OBJ_DIR)/ui
+	@mkdir -p $(OBJ_DIR)/backends
+	@mkdir -p $(WEB_OBJ_DIR)/graphics
 	@mkdir -p $(WEB_OBJ_DIR)/ui
+	@mkdir -p $(WEB_OBJ_DIR)/backends
 
-deps:
-	cd $(SDL_PATH) && cmake -B build && cmake --build build
-
+# Native build rules
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
-	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) $(LVGL_CFLAGS) -c $< -o $@
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
 
+$(OBJ_DIR)/graphics/%.o: $(GRAPHICS_DIR)/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/ui/%.o: $(UI_DIR)/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/backends/%.o: $(BACKENDS_DIR)/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+# Web build rules
 $(WEB_OBJ_DIR)/%.o: $(SRC_DIR)/%.c
-	@mkdir -p $(dir $@)
-	$(EMCC) $(CFLAGS) $(EM_FLAGS) -c $< -o $@
+	@echo "EMCC $<"
+	@$(EMCC) $(CFLAGS) $(EM_FLAGS) -c $< -o $@
 
-%.o: %.c
-	$(CC) $(CFLAGS) $(LVGL_CFLAGS) -c $< -o $@
+$(WEB_OBJ_DIR)/graphics/%.o: $(GRAPHICS_DIR)/%.c
+	@echo "EMCC $<"
+	@$(EMCC) $(CFLAGS) $(EM_FLAGS) -c $< -o $@
 
-$(LIB): makedirs $(OBJ) $(LVGL_OBJ)
-	ar rcs $@ $(OBJ) $(LVGL_OBJ)
+$(WEB_OBJ_DIR)/ui/%.o: $(UI_DIR)/%.c
+	@echo "EMCC $<"
+	@$(EMCC) $(CFLAGS) $(EM_FLAGS) -c $< -o $@
 
-web_lib: makedirs $(WEB_OBJ)
+$(WEB_OBJ_DIR)/backends/%.o: $(BACKENDS_DIR)/%.c
+	@echo "EMCC $<"
+	@$(EMCC) $(CFLAGS) $(EM_FLAGS) -c $< -o $@
+
+$(LIB): $(ALL_OBJS)
+	@echo "Creating library $@"
+	@ar rcs $@ $(ALL_OBJS)
+
+$(WEB_LIB): $(ALL_WEB_OBJS)
+	@echo "Creating web library $@"
+	@$(EMCC) -o $@ $(ALL_WEB_OBJS)
 
 clean:
-	rm -rf $(OBJ_DIR) $(LIB)
-	rm -f $(LVGL_OBJ)
+	rm -rf $(BUILD_DIR) $(LIB) $(WEB_LIB)
+	

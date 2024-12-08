@@ -1,7 +1,6 @@
 #ifndef SPARK_THEME_H
 #define SPARK_THEME_H
 
-#include <SDL2/SDL.h>
 #include "lvgl.h"
 #include <stdbool.h>
 
@@ -12,22 +11,16 @@ typedef enum {
 } SparkThemePreset;
 
 typedef struct {
-    // LVGL theme
-    lv_theme_t* lv_theme;
-    
     // Color palette
     lv_color_t primary;
     lv_color_t primary_dark;
     lv_color_t primary_light;
-    
     lv_color_t secondary;
     lv_color_t secondary_dark;
     lv_color_t secondary_light;
-    
     lv_color_t background;
     lv_color_t surface;
     lv_color_t error;
-    
     lv_color_t on_primary;
     lv_color_t on_secondary;
     lv_color_t on_background;

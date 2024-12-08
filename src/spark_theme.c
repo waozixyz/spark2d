@@ -8,24 +8,30 @@ struct SparkThemeBuilder {
 static SparkTheme* current_theme = NULL;
 static SparkTheme default_theme;
 static bool default_theme_initialized = false;
-
 static void apply_theme_to_lvgl(SparkTheme* theme) {
     if (!theme) return;
-    
-    static lv_theme_t new_theme;
-    lv_theme_default_init(NULL, 
-                         theme->primary,
-                         theme->secondary,
-                         true,  // dark mode flag based on theme
-                         &lv_font_default);
-    
-    theme->lv_theme = &new_theme;
-    
-    // Apply theme-wide metrics
-    lv_style_t* style = lv_theme_get_font_normal(&new_theme);
-    if (style) {
-        lv_style_set_pad_all(style, theme->spacing_unit);
-        lv_style_set_radius(style, theme->border_radius);
+
+    // Create the theme
+    lv_theme_t* new_theme = lv_theme_default_init(lv_disp_get_default(), 
+                                                 theme->primary,
+                                                 theme->secondary,
+                                                 true,
+                                                 lv_font_default());
+
+    if (new_theme) {
+        lv_disp_set_theme(lv_disp_get_default(), new_theme);
+        
+        // Create a default style for common settings
+        static lv_style_t style;
+        lv_style_init(&style);
+        
+        // Set padding and radius
+        lv_style_set_pad_all(&style, theme->spacing_unit);
+        lv_style_set_radius(&style, theme->border_radius);
+        
+        // Apply the style to the screen to affect all widgets
+        lv_obj_t* screen = lv_scr_act();
+        lv_obj_add_style(screen, &style, 0);
     }
 }
 
