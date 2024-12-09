@@ -1,7 +1,6 @@
 #ifndef SPARK_GRAPHICS_H
 #define SPARK_GRAPHICS_H
 
-#include "spark_graphics/core.h"
 #include "spark_graphics/primitives.h"
 #include "spark_graphics/text.h"
 #include "spark_graphics/image.h"

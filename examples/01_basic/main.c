@@ -16,6 +16,10 @@ static struct {
 void load(void) {
     // Initialize any resources here
     printf("Game initialized!\n");
+    spark_graphics_set_color(0.0f, 0.4f, 0.4f);
+    spark_graphics_rectangle("fill", rect.x, rect.y, rect.w, rect.h);
+    spark_graphics_set_color(0.0f, 0.8f, 0.8f);
+    spark_graphics_rectangle("line", rect.x, rect.y, rect.w, rect.h);
 }
 
 void update(float dt) {
@@ -36,19 +40,6 @@ void update(float dt) {
     if (rect.y < 0 || rect.y + rect.h > 600) rect.vy *= -1;
 }
 
-void draw(void) {
-    // Clear background to dark gray
-    spark_graphics_set_color(0.2f, 0.2f, 0.2f);
-    spark_graphics_clear();
-    
-    // Draw growing rectangle
-    spark_graphics_set_color(0.0f, 0.4f, 0.4f);
-    spark_graphics_rectangle("fill", rect.x, rect.y, rect.w, rect.h);
-    
-    // Draw outline
-    spark_graphics_set_color(0.0f, 0.8f, 0.8f);
-    spark_graphics_rectangle("line", rect.x, rect.y, rect.w, rect.h);
-}
 
 int main(void) {
     if (!spark_init("Spark2D Example", 800, 600)) {
@@ -59,7 +50,6 @@ int main(void) {
     // Register callbacks
     spark_set_load(load);
     spark_set_update(update);
-    spark_set_draw(draw);
 
     // Run the game
     int result = spark_run();

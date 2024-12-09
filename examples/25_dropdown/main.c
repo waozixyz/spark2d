@@ -29,14 +29,8 @@ void load(void) {
     // Optional: set a callback for when an item is selected
     spark_ui_dropdown_set_callback(dropdown, on_item_selected, NULL);
     
-
-}
-
-
-void draw(void) {
     // Clear background
     spark_graphics_set_color(0.2f, 0.2f, 0.2f);
-    spark_graphics_clear();
 
     // Draw some example text to show current selection
     char buffer[256];
@@ -49,15 +43,14 @@ void draw(void) {
     spark_graphics_set_color(1.0f, 1.0f, 1.0f);
     spark_graphics_print(buffer, 50, 100);
 
-    spark_graphics_present();
 }
+
 
 void cleanup(void) {
     if (dropdown) {
         spark_ui_dropdown_free(dropdown);
         dropdown = NULL;
     }
-    spark_graphics_cleanup();
 }
 
 int main(void) {

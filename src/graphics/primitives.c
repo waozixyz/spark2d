@@ -1,288 +1,373 @@
+// primitives.c
 #include "spark_graphics/primitives.h"
+#include "spark_graphics/color.h"
 #include "../internal.h"
-#include <SDL2/SDL.h>
 #include <math.h>
 #include <string.h>
-#include <stdlib.h>
+#include "lvgl.h"
 
 #define PI 3.14159265358979323846f
 #define DEG_TO_RAD(x) ((x) * PI / 180.0f)
 
-static SDL_Vertex* create_vertex_array(const float* positions, int vertex_count) {
-    SDL_Vertex* vertices = malloc(vertex_count * sizeof(SDL_Vertex));
-    if (!vertices) return NULL;
-    
-    Uint8 r, g, b, a;
-    SDL_GetRenderDrawColor(spark.renderer, &r, &g, &b, &a);
-    
-    SDL_Color color = {r, g, b, a};
-    
-    for (int i = 0; i < vertex_count; i++) {
-        vertices[i].position.x = positions[i * 2];
-        vertices[i].position.y = positions[i * 2 + 1];
-        vertices[i].color = color;
-        vertices[i].tex_coord.x = 0;
-        vertices[i].tex_coord.y = 0;
+static lv_obj_t* current_parent = NULL;
+
+
+
+void spark_graphics_set_layer(lv_obj_t* parent) {
+    current_parent = parent ? parent : lv_scr_act();
+}
+lv_obj_t* spark_graphics_rectangle(const char* mode, float x, float y, float w, float h) {
+    if (!current_parent) {
+        current_parent = lv_scr_act();
     }
     
-    return vertices;
-}
-
-void spark_graphics_rectangle(const char* mode, float x, float y, float w, float h) {
-    SDL_Rect rect = {(int)x, (int)y, (int)w, (int)h};
+    lv_obj_t* rect = lv_obj_create(current_parent);
+    if (!rect) return NULL;
+    
+    lv_obj_set_pos(rect, (int)x, (int)y);
+    lv_obj_set_size(rect, (int)w, (int)h);
+    
     if (strcmp(mode, "fill") == 0) {
-        SDL_RenderFillRect(spark.renderer, &rect);
-    } else if (strcmp(mode, "line") == 0) {
-        SDL_RenderDrawRect(spark.renderer, &rect);
+        lv_obj_set_style_bg_color(rect, spark_graphics_get_color(), 0);
+        lv_obj_set_style_bg_opa(rect, LV_OPA_COVER, 0);
+        lv_obj_set_style_border_width(rect, 0, 0);
+    } else {
+        lv_obj_set_style_bg_opa(rect, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_border_color(rect, spark_graphics_get_color(), 0);
+        lv_obj_set_style_border_width(rect, 1, 0);
+        lv_obj_set_style_border_opa(rect, LV_OPA_COVER, 0);
     }
+    return rect;
 }
 
-void spark_graphics_circle(const char* mode, float x, float y, float radius) {
-    const int segments = (int)(10 * sqrtf(radius));
-    float* pos = malloc(segments * 2 * sizeof(float));
-    
-    for (int i = 0; i < segments; i++) {
-        float angle = (float)i / (float)segments * 2.0f * PI;
-        pos[i * 2] = x + cosf(angle) * radius;
-        pos[i * 2 + 1] = y + sinf(angle) * radius;
+lv_obj_t* spark_graphics_circle(const char* mode, float x, float y, float radius) {
+    if (!current_parent) {
+        current_parent = lv_scr_act();
     }
+    
+    lv_obj_t* circle = lv_obj_create(current_parent);
+    if (!circle) return NULL;
+    
+    lv_obj_set_pos(circle, (int)(x - radius), (int)(y - radius));
+    lv_obj_set_size(circle, (int)(radius * 2), (int)(radius * 2));
+    
+    lv_obj_set_style_radius(circle, LV_RADIUS_CIRCLE, 0);
+    
+    if (strcmp(mode, "fill") == 0) {
+        lv_obj_set_style_bg_color(circle, spark_graphics_get_color(), 0);
+        lv_obj_set_style_bg_opa(circle, LV_OPA_COVER, 0);
+        lv_obj_set_style_border_width(circle, 0, 0);
+    } else {
+        lv_obj_set_style_bg_opa(circle, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_border_color(circle, spark_graphics_get_color(), 0);
+        lv_obj_set_style_border_width(circle, 1, 0);
+        lv_obj_set_style_border_opa(circle, LV_OPA_COVER, 0);
+    }
+    return circle;
+}
+
+lv_obj_t* spark_graphics_arc(const char* mode, float x, float y, float radius,
+                            float start_angle, float end_angle) {
+    if (!current_parent) {
+        current_parent = lv_scr_act();
+    }
+    
+    lv_obj_t* arc = lv_arc_create(current_parent);
+    if (!arc) return NULL;
+    
+    lv_obj_set_pos(arc, (int)(x - radius), (int)(y - radius));
+    lv_obj_set_size(arc, (int)(radius * 2), (int)(radius * 2));
+    
+    lv_arc_set_angles(arc, (int)start_angle, (int)end_angle);
+    
+    if (strcmp(mode, "fill") == 0) {
+        lv_obj_set_style_arc_color(arc, spark_graphics_get_color(), LV_PART_MAIN);
+        lv_obj_set_style_arc_width(arc, (int)radius, LV_PART_MAIN);
+    } else {
+        lv_obj_set_style_arc_color(arc, spark_graphics_get_color(), LV_PART_MAIN);
+        lv_obj_set_style_arc_width(arc, 1, LV_PART_MAIN);
+    }
+    return arc;
+}
+
+lv_obj_t* spark_graphics_line(float x1, float y1, float x2, float y2) {
+    if (!current_parent) {
+        current_parent = lv_scr_act();
+    }
+    
+    lv_obj_t* line = lv_line_create(current_parent);
+    if (!line) return NULL;
+    static lv_point_precise_t points[2];    
+    points[0].x = (int)x1;
+    points[0].y = (int)y1;
+    points[1].x = (int)x2;
+    points[1].y = (int)y2;
+    
+    lv_line_set_points(line, points, 2);
+    lv_obj_set_style_line_color(line, spark_graphics_get_color(), 0);
+    lv_obj_set_style_line_width(line, 1, 0);
+    return line;
+}
+
+lv_obj_t* spark_graphics_point(float x, float y) {
+    if (!current_parent) {
+        current_parent = lv_scr_act();
+    }
+    
+    lv_obj_t* point = lv_obj_create(current_parent);
+    if (!point) return NULL;
+    
+    lv_obj_set_pos(point, (int)x, (int)y);
+    lv_obj_set_size(point, 1, 1);
+    
+    lv_obj_set_style_bg_color(point, spark_graphics_get_color(), 0);
+    lv_obj_set_style_bg_opa(point, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(point, 0, 0);
+    return point;
+}
+
+lv_obj_t** spark_graphics_points(const float* points, int count) {
+    lv_obj_t** point_objects = malloc(sizeof(lv_obj_t*) * count);
+    if (!point_objects) return NULL;
+    
+    for (int i = 0; i < count; i++) {
+        point_objects[i] = spark_graphics_point(points[i * 2], points[i * 2 + 1]);
+    }
+    return point_objects;
+}
+
+
+lv_obj_t* spark_graphics_polygon(const char* mode, const float* vertices, int count) {
+    if (!current_parent || count < 3) return NULL;
+    
+    spark_polygon_t* poly = malloc(sizeof(spark_polygon_t));
+    if (!poly) return NULL;
+
+    // Create container
+    poly->container = lv_obj_create(current_parent);
+    if (!poly->container) {
+        free(poly);
+        return NULL;
+    }
+
+    // Make container transparent
+    lv_obj_set_style_bg_opa(poly->container, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(poly->container, 0, 0);
     
     if (strcmp(mode, "line") == 0) {
-        for (int i = 0; i < segments - 1; i++) {
-            SDL_RenderDrawLine(spark.renderer,
-                          (int)pos[i * 2], (int)pos[i * 2 + 1],
-                          (int)pos[(i + 1) * 2], (int)pos[(i + 1) * 2 + 1]);
+        poly->is_filled = false;
+        poly->count = count;
+        poly->elements = malloc(sizeof(lv_obj_t*) * count);
+        
+        // Draw the outline using lines
+        for (int i = 0; i < count - 1; i++) {
+            poly->elements[i] = lv_line_create(poly->container);
+
+            static lv_point_precise_t points[2];
+            points[0].x = (int)vertices[i * 2];
+            points[0].y = (int)vertices[i * 2 + 1];
+            points[1].x = (int)vertices[(i + 1) * 2];
+            points[1].y = (int)vertices[(i + 1) * 2 + 1];
+            
+            lv_line_set_points(poly->elements[i], points, 2);
+            lv_obj_set_style_line_color(poly->elements[i], spark_graphics_get_color(), 0);
+            lv_obj_set_style_line_width(poly->elements[i], 1, 0);
         }
-        SDL_RenderDrawLine(spark.renderer,
-                      (int)pos[(segments - 1) * 2], (int)pos[(segments - 1) * 2 + 1],
-                      (int)pos[0], (int)pos[1]);
+        
+        // Close the polygon
+        poly->elements[count - 1] = lv_line_create(poly->container);
+        static lv_point_precise_t closing_points[2];
+        closing_points[0].x = (int)vertices[(count - 1) * 2];
+        closing_points[0].y = (int)vertices[(count - 1) * 2 + 1];
+        closing_points[1].x = (int)vertices[0];
+        closing_points[1].y = (int)vertices[1];
+        
+        lv_line_set_points(poly->elements[count - 1], closing_points, 2);
+        lv_obj_set_style_line_color(poly->elements[count - 1], spark_graphics_get_color(), 0);
+        lv_obj_set_style_line_width(poly->elements[count - 1], 1, 0);
+        
     } else if (strcmp(mode, "fill") == 0) {
-        SDL_Vertex* vertices = malloc((segments + 2) * sizeof(SDL_Vertex));
-        if (!vertices) {
-            free(pos);
-            return;
+        poly->is_filled = true;
+        poly->count = count - 2;  // Number of triangles
+        poly->elements = malloc(sizeof(lv_obj_t*) * poly->count);
+        
+        // For filled polygons, triangulate using triangle fan
+        for (int i = 0; i < poly->count; i++) {
+            lv_obj_t* tri = lv_obj_create(poly->container);
+            poly->elements[i] = tri;
+            
+            // Set triangle vertices here...
+            // You'll need to implement a way to draw filled triangles
+            // This might involve using a custom draw callback or 
+            // using existing LVGL shapes creatively
         }
-        
-        Uint8 r, g, b, a;
-        SDL_GetRenderDrawColor(spark.renderer, &r, &g, &b, &a);
-        SDL_Color color = {r, g, b, a};
-        
-        // Center vertex
-        vertices[0].position.x = x;
-        vertices[0].position.y = y;
-        vertices[0].color = color;
-        vertices[0].tex_coord.x = 0;
-        vertices[0].tex_coord.y = 0;
-        
-        // Circle vertices
-        for (int i = 0; i < segments; i++) {
-            vertices[i + 1].position.x = pos[i * 2];
-            vertices[i + 1].position.y = pos[i * 2 + 1];
-            vertices[i + 1].color = color;
-            vertices[i + 1].tex_coord.x = 0;
-            vertices[i + 1].tex_coord.y = 0;
-        }
-        
-        // Close the circle
-        vertices[segments + 1] = vertices[1];
-        
-        SDL_RenderGeometry(spark.renderer, NULL, vertices, segments + 2, NULL, 0);
-        
-        free(vertices);
     }
     
-    free(pos);
+    return poly->container;
 }
 
-void spark_graphics_arc(const char* mode, float x, float y, float radius, 
-                       float start_angle, float end_angle) {
-    float start_rad = DEG_TO_RAD(start_angle);
-    float end_rad = DEG_TO_RAD(end_angle);
-    
-    float arc_length = fabsf(end_rad - start_rad);
-    int segments = (int)(10 * sqrtf(radius) * (arc_length / (2.0f * PI)));
-    if (segments < 1) segments = 1;
-    
-    float* pos = malloc((segments + 1) * 2 * sizeof(float));
-    
-    for (int i = 0; i <= segments; i++) {
-        float angle = start_rad + (end_rad - start_rad) * ((float)i / segments);
-        pos[i * 2] = x + cosf(angle) * radius;
-        pos[i * 2 + 1] = y + sinf(angle) * radius;
-    }
-    
-    if (strcmp(mode, "line") == 0) {
-        for (int i = 0; i < segments; i++) {
-            SDL_RenderDrawLine(spark.renderer,
-                          pos[i * 2], pos[i * 2 + 1],
-                          pos[(i + 1) * 2], pos[(i + 1) * 2 + 1]);
-        }
-    } else if (strcmp(mode, "fill") == 0) {
-        for (int i = 0; i < segments; i++) {
-            float tri_pos[] = {
-                x, y,
-                pos[i * 2], pos[i * 2 + 1],
-                pos[(i + 1) * 2], pos[(i + 1) * 2 + 1]
-            };
-            SDL_Vertex* vertices = create_vertex_array(tri_pos, 3);
-            if (vertices) {
-                SDL_RenderGeometry(spark.renderer, NULL, vertices, 3, NULL, 0);
-                free(vertices);
-            }
-        }
-    }
-    
-    free(pos);
+lv_obj_t* spark_graphics_triangle(const char* mode, float x1, float y1, float x2, float y2, float x3, float y3) {
+    float vertices[] = {x1, y1, x2, y2, x3, y3};
+    lv_obj_t* triangle = spark_graphics_polygon(mode, vertices, 3);
+    return triangle;
 }
 
-void spark_graphics_rounded_rectangle(const char* mode, float x, float y, float w, float h, float radius) {
-    // Clamp radius to half the minimum dimension to prevent overlapping
+lv_obj_t* spark_graphics_quad(const char* mode, float x1, float y1, float x2, float y2, 
+                        float x3, float y3, float x4, float y4) {
+    float vertices[] = {x1, y1, x2, y2, x3, y3, x4, y4};
+    lv_obj_t* quad = spark_graphics_polygon(mode, vertices, 4);
+    return quad;
+}
+
+lv_obj_t* spark_graphics_ellipse(const char* mode, float x, float y, float radiusx, float radiusy) {
+    if (!current_parent) {
+        current_parent = lv_scr_act();
+    }
+    
+    lv_obj_t* ellipse = lv_obj_create(current_parent);
+    if (!ellipse) return NULL;
+    
+    lv_obj_set_pos(ellipse, (int)(x - radiusx), (int)(y - radiusy));
+    lv_obj_set_size(ellipse, (int)(radiusx * 2), (int)(radiusy * 2));
+    
+    lv_obj_set_style_radius(ellipse, LV_RADIUS_CIRCLE, 0);
+    
+    if (strcmp(mode, "fill") == 0) {
+        lv_obj_set_style_bg_color(ellipse, spark_graphics_get_color(), 0);
+        lv_obj_set_style_bg_opa(ellipse, LV_OPA_COVER, 0);
+        lv_obj_set_style_border_width(ellipse, 0, 0);
+    } else {
+        lv_obj_set_style_bg_opa(ellipse, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_border_color(ellipse, spark_graphics_get_color(), 0);
+        lv_obj_set_style_border_width(ellipse, 1, 0);
+        lv_obj_set_style_border_opa(ellipse, LV_OPA_COVER, 0);
+    }
+    
+    // Apply scaling transform to make it elliptical
+    lv_obj_set_style_transform_scale_x(ellipse, (int)((radiusx / radiusy) * 256), 0);
+    return ellipse;
+}
+
+lv_obj_t* spark_graphics_rounded_rectangle(const char* mode, float x, float y, float w, float h, float radius) {
+    if (!current_parent) {
+        current_parent = lv_scr_act();
+    }
+    
+    lv_obj_t* rect = lv_obj_create(current_parent);
+    if (!rect) return NULL;
+    
     radius = fminf(radius, fminf(w/2, h/2));
     
+    lv_obj_set_pos(rect, (int)x, (int)y);
+    lv_obj_set_size(rect, (int)w, (int)h);
+    
+    lv_obj_set_style_radius(rect, (int)radius, 0);
+    
     if (strcmp(mode, "fill") == 0) {
-        // Draw the main rectangle in the middle
-        spark_graphics_rectangle("fill", x + radius, y, w - 2 * radius, h);
-        
-        // Draw the rectangles on the sides
-        spark_graphics_rectangle("fill", x, y + radius, w, h - 2 * radius);
-        
-        // Draw the four corner circles last
-        spark_graphics_circle("fill", x + radius, y + radius, radius);                  // Top-left
-        spark_graphics_circle("fill", x + w - radius, y + radius, radius);             // Top-right
-        spark_graphics_circle("fill", x + radius, y + h - radius, radius);             // Bottom-left
-        spark_graphics_circle("fill", x + w - radius, y + h - radius, radius);         // Bottom-right
-    } 
-    else if (strcmp(mode, "line") == 0) {
-        // Draw top and bottom lines
-        spark_graphics_line(x + radius, y, x + w - radius, y);
-        spark_graphics_line(x + radius, y + h, x + w - radius, y + h);
-        
-        // Draw left and right lines
-        spark_graphics_line(x, y + radius, x, y + h - radius);
-        spark_graphics_line(x + w, y + radius, x + w, y + h - radius);
-        
-        // Draw the four corner arcs
-        spark_graphics_arc("line", x + radius, y + radius, radius, 180, 270);          // Top-left
-        spark_graphics_arc("line", x + w - radius, y + radius, radius, 270, 360);      // Top-right
-        spark_graphics_arc("line", x + radius, y + h - radius, radius, 90, 180);       // Bottom-left
-        spark_graphics_arc("line", x + w - radius, y + h - radius, radius, 0, 90);     // Bottom-right
+        lv_obj_set_style_bg_color(rect, spark_graphics_get_color(), 0);
+        lv_obj_set_style_bg_opa(rect, LV_OPA_COVER, 0);
+        lv_obj_set_style_border_width(rect, 0, 0);
+    } else {
+        lv_obj_set_style_bg_opa(rect, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_border_color(rect, spark_graphics_get_color(), 0);
+        lv_obj_set_style_border_width(rect, 1, 0);
+        lv_obj_set_style_border_opa(rect, LV_OPA_COVER, 0);
     }
+    return rect;
 }
 
-void spark_graphics_polygon(const char* mode, const float* vertices, int count) {
-    if (count < 3) return;
+// Update functions
+void spark_graphics_update_rectangle(lv_obj_t* rect, float x, float y, float w, float h) {
+    if (!rect) return;
+    lv_obj_set_pos(rect, (int)x, (int)y);
+    lv_obj_set_size(rect, (int)w, (int)h);
+}
+
+void spark_graphics_update_circle(lv_obj_t* circle, float x, float y, float radius) {
+    if (!circle) return;
+    lv_obj_set_pos(circle, (int)(x - radius), (int)(y - radius));
+    lv_obj_set_size(circle, (int)(radius * 2), (int)(radius * 2));
+}
+
+void spark_graphics_update_arc(lv_obj_t* arc, float x, float y, float radius, float start_angle, float end_angle) {
+    if (!arc) return;
+    lv_obj_set_pos(arc, (int)(x - radius), (int)(y - radius));
+    lv_obj_set_size(arc, (int)(radius * 2), (int)(radius * 2));
+    lv_arc_set_angles(arc, (int)start_angle, (int)end_angle);
+}
+
+void spark_graphics_update_line(lv_obj_t* line, float x1, float y1, float x2, float y2) {
+    if (!line) return;
+    static lv_point_precise_t points[2];
+    points[0].x = (int)x1;
+    points[0].y = (int)y1;
+    points[1].x = (int)x2;
+    points[1].y = (int)y2;
+    lv_line_set_points(line, points, 2);
+}
+
+void spark_graphics_update_point(lv_obj_t* point, float x, float y) {
+    if (!point) return;
+    lv_obj_set_pos(point, (int)x, (int)y);
+}
+
+void spark_graphics_update_polygon(lv_obj_t* polygon, const float* vertices, int count) {
+    if (!polygon) return;
     
-    if (strcmp(mode, "line") == 0) {
+    spark_polygon_t* poly = (spark_polygon_t*)lv_obj_get_user_data(polygon);
+    if (!poly) return;
+    
+    if (!poly->is_filled) {
+        // Update line positions
         for (int i = 0; i < count - 1; i++) {
-            SDL_RenderDrawLine(spark.renderer,
-                          vertices[i * 2], vertices[i * 2 + 1],
-                          vertices[(i + 1) * 2], vertices[(i + 1) * 2 + 1]);
-        }
-        SDL_RenderDrawLine(spark.renderer,
-                      vertices[(count - 1) * 2], vertices[(count - 1) * 2 + 1],
-                      vertices[0], vertices[1]);
-    } else if (strcmp(mode, "fill") == 0) {
-        for (int i = 1; i < count - 1; i++) {
-            float tri_pos[] = {
-                vertices[0], vertices[1],
-                vertices[i * 2], vertices[i * 2 + 1],
-                vertices[(i + 1) * 2], vertices[(i + 1) * 2 + 1]
-            };
-            SDL_Vertex* tri_vertices = create_vertex_array(tri_pos, 3);
-            if (tri_vertices) {
-                SDL_RenderGeometry(spark.renderer, NULL, tri_vertices, 3, NULL, 0);
-                free(tri_vertices);
-            }
-        }
-    }
-}
-
-void spark_graphics_ellipse(const char* mode, float x, float y, float radiusx, float radiusy) {
-    const int segments = (int)(10 * sqrtf(fmaxf(radiusx, radiusy)));
-    float* pos = malloc(segments * 2 * sizeof(float));
-    
-    for (int i = 0; i < segments; i++) {
-        float angle = (float)i / (float)segments * 2.0f * PI;
-        pos[i * 2] = x + cosf(angle) * radiusx;
-        pos[i * 2 + 1] = y + sinf(angle) * radiusy;
-    }
-    
-    if (strcmp(mode, "line") == 0) {
-        for (int i = 0; i < segments - 1; i++) {
-            SDL_RenderDrawLine(spark.renderer,
-                          pos[i * 2], pos[i * 2 + 1],
-                          pos[(i + 1) * 2], pos[(i + 1) * 2 + 1]);
-        }
-        SDL_RenderDrawLine(spark.renderer,
-                      pos[(segments - 1) * 2], pos[(segments - 1) * 2 + 1],
-                      pos[0], pos[1]);
-    } else if (strcmp(mode, "fill") == 0) {
-        for (int i = 1; i < segments - 1; i++) {
-            float tri_pos[] = {
-                x, y,
-                pos[i * 2], pos[i * 2 + 1],
-                pos[(i + 1) * 2], pos[(i + 1) * 2 + 1]
-            };
-            SDL_Vertex* vertices = create_vertex_array(tri_pos, 3);
-            if (vertices) {
-                SDL_RenderGeometry(spark.renderer, NULL, vertices, 3, NULL, 0);
-                free(vertices);
-            }
-        }
-    }
-    
-    free(pos);
-}
-
-
-void spark_graphics_point(float x, float y) {
-    SDL_RenderDrawPoint(spark.renderer, (int)x, (int)y);
-}
-
-void spark_graphics_line(float x1, float y1, float x2, float y2) {
-    SDL_RenderDrawLine(spark.renderer, (int)x1, (int)y1, (int)x2, (int)y2);
-}
-void spark_graphics_points(const float* points, int count) {
-    for (int i = 0; i < count; i++) {
-        SDL_RenderDrawPoint(spark.renderer, points[i * 2], points[i * 2 + 1]);
-    }
-}
-
-void spark_graphics_triangle(const char* mode, float x1, float y1, float x2, float y2, float x3, float y3) {
-    if (strcmp(mode, "line") == 0) {
-        SDL_RenderDrawLine(spark.renderer, x1, y1, x2, y2);
-        SDL_RenderDrawLine(spark.renderer, x2, y2, x3, y3);
-        SDL_RenderDrawLine(spark.renderer, x3, y3, x1, y1);
-    } else if (strcmp(mode, "fill") == 0) {
-        float pos[] = {x1, y1, x2, y2, x3, y3};
-        SDL_Vertex* vertices = create_vertex_array(pos, 3);
-        if (vertices) {
-            SDL_RenderGeometry(spark.renderer, NULL, vertices, 3, NULL, 0);
-            free(vertices);
-        }
-    }
-}
-
-void spark_graphics_quad(const char* mode, float x1, float y1, float x2, float y2, 
-                        float x3, float y3, float x4, float y4) {
-    if (strcmp(mode, "line") == 0) {
-        SDL_RenderDrawLine(spark.renderer, x1, y1, x2, y2);
-        SDL_RenderDrawLine(spark.renderer, x2, y2, x3, y3);
-        SDL_RenderDrawLine(spark.renderer, x3, y3, x4, y4);
-        SDL_RenderDrawLine(spark.renderer, x4, y4, x1, y1);
-    } else if (strcmp(mode, "fill") == 0) {
-        float tri1_pos[] = {x1, y1, x2, y2, x3, y3};
-        float tri2_pos[] = {x1, y1, x3, y3, x4, y4};
-        
-        SDL_Vertex* vertices1 = create_vertex_array(tri1_pos, 3);
-        SDL_Vertex* vertices2 = create_vertex_array(tri2_pos, 3);
-        
-        if (vertices1 && vertices2) {
-            SDL_RenderGeometry(spark.renderer, NULL, vertices1, 3, NULL, 0);
-            SDL_RenderGeometry(spark.renderer, NULL, vertices2, 3, NULL, 0);
+            static lv_point_precise_t points[2];
+            points[0].x = (int)vertices[i * 2];
+            points[0].y = (int)vertices[i * 2 + 1];
+            points[1].x = (int)vertices[(i + 1) * 2];
+            points[1].y = (int)vertices[(i + 1) * 2 + 1];
+            
+            lv_line_set_points(poly->elements[i], points, 2);
         }
         
-        free(vertices1);
-        free(vertices2);
+        // Update closing line
+        static lv_point_precise_t closing_points[2];
+        closing_points[0].x = (int)vertices[(count - 1) * 2];
+        closing_points[0].y = (int)vertices[(count - 1) * 2 + 1];
+        closing_points[1].x = (int)vertices[0];
+        closing_points[1].y = (int)vertices[1];
+        
+        lv_line_set_points(poly->elements[count - 1], closing_points, 2);
+    } else {
+        // Update filled triangles
+        for (int i = 0; i < poly->count; i++) {
+            // Update triangle positions...
+            // Implementation depends on how you chose to implement filled triangles
+        }
     }
+}
+
+void spark_graphics_update_triangle(lv_obj_t* triangle, float x1, float y1, float x2, float y2, float x3, float y3) {
+    float vertices[] = {x1, y1, x2, y2, x3, y3};
+    spark_graphics_update_polygon(triangle, vertices, 3);
+}
+
+void spark_graphics_update_quad(lv_obj_t* quad, float x1, float y1, float x2, float y2, 
+                              float x3, float y3, float x4, float y4) {
+    float vertices[] = {x1, y1, x2, y2, x3, y3, x4, y4};
+    spark_graphics_update_polygon(quad, vertices, 4);
+}
+
+void spark_graphics_update_ellipse(lv_obj_t* ellipse, float x, float y, float radiusx, float radiusy) {
+    if (!ellipse) return;
+    lv_obj_set_pos(ellipse, (int)(x - radiusx), (int)(y - radiusy));
+    lv_obj_set_size(ellipse, (int)(radiusx * 2), (int)(radiusy * 2));
+    lv_obj_set_style_transform_scale_x(ellipse, (int)((radiusx / radiusy) * 256), 0);
+}
+
+void spark_graphics_update_rounded_rectangle(lv_obj_t* rect, float x, float y, float w, float h, float radius) {
+    if (!rect) return;
+    radius = fminf(radius, fminf(w/2, h/2));
+    lv_obj_set_pos(rect, (int)x, (int)y);
+    lv_obj_set_size(rect, (int)w, (int)h);
+    lv_obj_set_style_radius(rect, (int)radius, 0);
 }

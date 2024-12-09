@@ -47,7 +47,6 @@ void cleanup(void) {
         spark_ui_tabbar_free(tabbar);
         tabbar = NULL;
     }
-    spark_graphics_cleanup();
 }
 
 int main(void) {

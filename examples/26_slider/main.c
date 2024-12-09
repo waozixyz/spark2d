@@ -42,7 +42,6 @@ void load(void) {
 
 void draw(void) {
     spark_graphics_set_color(0.2f, 0.2f, 0.2f);
-    spark_graphics_clear();
 
     if (volume_slider) {
         spark_graphics_set_color(1.0f, 1.0f, 1.0f);
@@ -61,8 +60,6 @@ void draw(void) {
 
     snprintf(buffer, sizeof(buffer), "Brightness: %.2f", spark_ui_slider_get_value(brightness_slider));
     spark_graphics_print(buffer, 300, 100);
-
-    spark_graphics_present();
 }
 
 void cleanup(void) {
@@ -74,7 +71,6 @@ void cleanup(void) {
         spark_ui_slider_free(brightness_slider);
         brightness_slider = NULL;
     }
-    spark_graphics_cleanup();
 }
 
 int main(void) {

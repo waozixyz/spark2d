@@ -38,7 +38,6 @@ void cleanup(void) {
         spark_graphics_image_free(image);
         image = NULL;
     }
-    spark_graphics_cleanup();
 }
 
 int main(void) {

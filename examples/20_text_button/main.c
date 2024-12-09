@@ -28,7 +28,6 @@ void cleanup(void) {
         spark_ui_button_free(button);
         button = NULL;
     }
-    spark_graphics_cleanup();
 }
 
 int main(void) {
