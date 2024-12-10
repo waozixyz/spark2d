@@ -11,7 +11,6 @@ static void button_event_cb(lv_event_t* e) {
         button->callback(button->user_data);
     }
 }
-
 static SparkButton* create_button_base(float x, float y, float width, float height) {
     SparkButton* button = calloc(1, sizeof(SparkButton));
     if (!button) {
@@ -19,14 +18,19 @@ static SparkButton* create_button_base(float x, float y, float width, float heig
         return NULL;
     }
 
-    // Create the LVGL button object
-    button->button = lv_btn_create(lv_scr_act());
+    // Create the LVGL button object - use current container if set
+    lv_obj_t* parent = spark.current_container ? 
+        (lv_obj_t*)spark_ui_container_get_native_handle(spark.current_container) : 
+        lv_scr_act();
+
+    button->button = lv_btn_create(parent);
     if (!button->button) {
         printf("Failed to create LVGL button object\n");
         free(button);
         return NULL;
     }
 
+    // Rest of the function stays the same...
     // Create and initialize button style
     lv_style_t* style = malloc(sizeof(lv_style_t));
     if (!style) {
@@ -42,7 +46,7 @@ static SparkButton* create_button_base(float x, float y, float width, float heig
     // Set default style properties
     lv_style_set_radius(style, 4);
     lv_style_set_bg_opa(style, LV_OPA_COVER);
-    lv_style_set_bg_color(style, lv_color_hex(0x2196F3));  // Material Blue
+    lv_style_set_bg_color(style, lv_color_hex(0x2196F3));
     lv_style_set_bg_grad_color(style, lv_color_hex(0x1976D2));
     lv_style_set_bg_grad_dir(style, LV_GRAD_DIR_VER);
     

@@ -5,9 +5,9 @@
 #include <SDL2/SDL_rect.h>
 #include <stdint.h>
 #include <stdbool.h>
-// LVGL includes
 #include "lvgl.h"
 #include "../include/spark_window.h"
+#include "spark_ui/container.h"
 
 typedef struct {
     SDL_Window* window;
@@ -15,7 +15,7 @@ typedef struct {
     WindowState window_state;
     lv_display_t* display;
     lv_indev_t* mouse_indev;
-    lv_layer_t* draw_layer;  // Add the draw layer
+    lv_layer_t* draw_layer;
     void (*load)(void);
     void (*update)(float dt);
     void (*draw)(void);
@@ -23,7 +23,9 @@ typedef struct {
     uint16_t height;
     bool fullscreen;
     bool maximize;
+    SparkContainer* current_container;  // Current UI container context
 } Spark2D;
 
 extern Spark2D spark;
+
 #endif

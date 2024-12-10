@@ -2,7 +2,7 @@
 #ifndef SPARK_GRAPHICS_PRIMITIVES_H
 #define SPARK_GRAPHICS_PRIMITIVES_H
 
-#include <lvgl.h>
+#include "lvgl.h"
 
 // In primitives_internal.h
 typedef struct {

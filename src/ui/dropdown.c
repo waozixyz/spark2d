@@ -26,7 +26,6 @@ static void dropdown_event_cb(lv_event_t* e) {
     
     dropdown->callback(selected, buf, dropdown->user_data);
 }
-
 SparkDropdown* spark_ui_dropdown_new(float x, float y, float width, float height) {
     SparkDropdown* dropdown = malloc(sizeof(SparkDropdown));
     if (!dropdown) return NULL;
@@ -38,8 +37,12 @@ SparkDropdown* spark_ui_dropdown_new(float x, float y, float width, float height
     dropdown->callback = NULL;
     dropdown->user_data = NULL;
 
-    // Create LVGL dropdown
-    dropdown->dropdown = lv_dropdown_create(lv_scr_act());
+    // Create LVGL dropdown - use current container if set
+    lv_obj_t* parent = spark.current_container ? 
+        (lv_obj_t*)spark_ui_container_get_native_handle(spark.current_container) : 
+        lv_scr_act();
+
+    dropdown->dropdown = lv_dropdown_create(parent);
     if (!dropdown->dropdown) {
         free(dropdown);
         return NULL;
@@ -54,6 +57,7 @@ SparkDropdown* spark_ui_dropdown_new(float x, float y, float width, float height
 
     return dropdown;
 }
+
 
 void spark_ui_dropdown_free(SparkDropdown* dropdown) {
     if (!dropdown) return;

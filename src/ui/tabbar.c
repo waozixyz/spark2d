@@ -10,18 +10,34 @@ static void tab_change_event_cb(lv_event_t* e) {
         tabbar->callback(tab_index);
     }
 }
-
+static void handle_parent_resize(lv_event_t* e) {
+    lv_obj_t* tabview = lv_event_get_target(e);
+    SparkTabBar* tabbar = lv_obj_get_user_data(tabview);
+    
+    // Only adjust width if max_width is set
+    if (tabbar->width > 0) {
+        lv_obj_t* parent = lv_obj_get_parent(tabview);
+        if (!parent) return;
+        
+        lv_coord_t parent_width = lv_obj_get_width(parent);
+        lv_coord_t new_width = LV_MIN(parent_width, (lv_coord_t)tabbar->width);
+        lv_obj_set_width(tabview, new_width);
+    }
+}
 SparkTabBar* spark_ui_tabbar_build(const SparkTabBarBuilder* builder) {
     SparkTabBar* tabbar = calloc(1, sizeof(SparkTabBar));
     if (!tabbar) return NULL;
 
-    // Create the LVGL tabview with the new API
-    tabbar->tabview = lv_tabview_create(lv_scr_act());
+    // Create the LVGL tabview - use current container if set
+    lv_obj_t* parent = spark.current_container ? 
+        (lv_obj_t*)spark_ui_container_get_native_handle(spark.current_container) : 
+        lv_scr_act();
+
+    tabbar->tabview = lv_tabview_create(parent);
     if (!tabbar->tabview) {
         free(tabbar);
         return NULL;
     }
-
     // Initialize style
     lv_style_t* style = malloc(sizeof(lv_style_t));
     if (!style) {
@@ -46,16 +62,26 @@ SparkTabBar* spark_ui_tabbar_build(const SparkTabBarBuilder* builder) {
     tabbar->height = builder->height;
     tabbar->width = builder->max_width;
     
-    // Set position and size
-    lv_obj_set_pos(tabbar->tabview, (lv_coord_t)builder->max_width, (lv_coord_t)builder->height);
+    // Handle width constraints
     if (builder->max_width > 0) {
-        lv_obj_set_width(tabbar->tabview, (lv_coord_t)builder->max_width);
+        lv_coord_t parent_width = lv_obj_get_width(lv_obj_get_parent(tabbar->tabview));
+        lv_coord_t width = LV_MIN(parent_width, (lv_coord_t)builder->max_width);
+        lv_obj_set_width(tabbar->tabview, width);
+        
+        // Center if requested
+        if (builder->centered) {
+            lv_obj_set_align(tabbar->tabview, LV_ALIGN_CENTER);
+        }
+        
+        // Add resize handler for max_width constraint
+        lv_obj_add_event_cb(tabbar->tabview, handle_parent_resize, LV_EVENT_SIZE_CHANGED, tabbar);
+        lv_obj_set_user_data(tabbar->tabview, tabbar);
     }
 
-    // Set tab bar position
-    lv_tabview_set_tab_bar_position(tabbar->tabview, builder->position);
-    
-    // Set tab bar size if specified
+    // Set tab bar position (default to bottom if not specified)
+    SparkTabPosition position = builder->position ? builder->position : SPARK_TAB_BOTTOM;
+    lv_tabview_set_tab_bar_position(tabbar->tabview, (lv_dir_t)position);
+    // Set tab bar height if specified
     if (builder->height > 0) {
         lv_tabview_set_tab_bar_size(tabbar->tabview, (int32_t)builder->height);
     }

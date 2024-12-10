@@ -1,15 +1,22 @@
-// spark_ui_tabbar.h
 #ifndef SPARK_UI_TABBAR_H
 #define SPARK_UI_TABBAR_H
 
 #include "../../../deps/lvgl/lvgl.h"
 
+// Tab positions
+typedef enum {
+    SPARK_TAB_TOP = LV_DIR_TOP,
+    SPARK_TAB_BOTTOM = LV_DIR_BOTTOM,
+    SPARK_TAB_LEFT = LV_DIR_LEFT,
+    SPARK_TAB_RIGHT = LV_DIR_RIGHT
+} SparkTabPosition;
+
 typedef void (*SparkTabCallback)(int tab_index);
 
 typedef struct {
-    lv_obj_t* tabview;       // LVGL tabview object
-    lv_style_t* style;       // Tabbar style
-    lv_obj_t** tab_buttons;  // Array of tab button objects
+    lv_obj_t* tabview;
+    lv_style_t* style;
+    lv_obj_t** tab_buttons;
     int tab_count;
     float x;
     float y;
@@ -20,7 +27,7 @@ typedef struct {
 
 typedef struct {
     const char* text;
-    const void* image_src;  // LVGL image source
+    const void* image_src;
     bool enabled;
     void* user_data;
 } SparkTabConfig;
@@ -31,12 +38,11 @@ typedef struct {
 } SparkTabGroup;
 
 typedef struct {
-    int position;           // LV_DIR_TOP or LV_DIR_BOTTOM
+    SparkTabPosition position;
     float height;
     float max_width;
     SparkTabCallback callback;
     bool centered;
-    bool auto_resize;
 } SparkTabBarBuilder;
 
 // Creation and destruction

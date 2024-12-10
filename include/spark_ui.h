@@ -6,5 +6,6 @@
 #include "spark_ui/dropdown.h"
 #include "spark_ui/slider.h"
 #include "spark_ui/label.h"
+#include "spark_ui/container.h"
 
 #endif /* SPARK_UI_H */

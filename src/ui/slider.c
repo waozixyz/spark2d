@@ -27,8 +27,12 @@ SparkSlider* spark_ui_slider_new(float x, float y, float width, float height) {
     SparkSlider* slider = calloc(1, sizeof(SparkSlider));
     if (!slider) return NULL;
 
-    // Create LVGL slider
-    slider->slider = lv_slider_create(lv_scr_act());
+    // Create LVGL slider - use current container if set
+    lv_obj_t* parent = spark.current_container ? 
+        (lv_obj_t*)spark_ui_container_get_native_handle(spark.current_container) : 
+        lv_scr_act();
+
+    slider->slider = lv_slider_create(parent);
     if (!slider->slider) {
         free(slider);
         return NULL;
@@ -135,7 +139,9 @@ void spark_ui_slider_set_show_value(SparkSlider* slider, bool show) {
     slider->show_value = show;
     
     if (show && !slider->value_label) {
-        slider->value_label = lv_label_create(lv_scr_act());
+        // Use same parent as slider for value label
+        lv_obj_t* parent = lv_obj_get_parent(slider->slider);
+        slider->value_label = lv_label_create(parent);
         lv_obj_align_to(slider->value_label, slider->slider, LV_ALIGN_OUT_RIGHT_MID, 10, 0);
         char buf[32];
         snprintf(buf, sizeof(buf), "%.1f", spark_ui_slider_get_value(slider));
