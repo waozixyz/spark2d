@@ -11,11 +11,6 @@
 
 static lv_obj_t* current_parent = NULL;
 
-
-
-void spark_graphics_set_layer(lv_obj_t* parent) {
-    current_parent = parent ? parent : lv_scr_act();
-}
 lv_obj_t* spark_graphics_rectangle(const char* mode, float x, float y, float w, float h) {
     if (!current_parent) {
         current_parent = lv_scr_act();

@@ -21,17 +21,22 @@ static void apply_theme_to_lvgl(SparkTheme* theme) {
     if (new_theme) {
         lv_disp_set_theme(lv_disp_get_default(), new_theme);
         
-        // Create a default style for common settings
-        static lv_style_t style;
-        lv_style_init(&style);
+        // Use a single static style for the entire application
+        static lv_style_t default_style;
+        static bool style_initialized = false;
         
-        // Set padding and radius
-        lv_style_set_pad_all(&style, theme->spacing_unit);
-        lv_style_set_radius(&style, theme->border_radius);
+        if (!style_initialized) {
+            lv_style_init(&default_style);
+            style_initialized = true;
+        }
         
-        // Apply the style to the screen to affect all widgets
+        // Update the style properties
+        lv_style_set_pad_all(&default_style, theme->spacing_unit);
+        lv_style_set_radius(&default_style, theme->border_radius);
+        
+        // Apply the style to the screen
         lv_obj_t* screen = lv_scr_act();
-        lv_obj_add_style(screen, &style, 0);
+        lv_obj_add_style(screen, &default_style, 0);
     }
 }
 

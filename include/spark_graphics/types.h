@@ -3,7 +3,6 @@
 #define SPARK_GRAPHICS_TYPES_H
 
 #include <SDL2/SDL.h>
-#include <stdbool.h>
 #include "lvgl.h"
 
 typedef enum {
@@ -28,15 +27,17 @@ typedef enum {
     SPARK_IMAGE_FILTER_OVERLAY
 } SparkImageFilterMode;
 
+
+
+// Update the SparkImage struct definition in spark_graphics/image.h:
 typedef struct SparkImage {
-    lv_obj_t* img;              // LVGL image object
-    const void* src_data;       // Source data for memory images
-    lv_img_dsc_t* img_dsc;     // Image descriptor for memory images
-    lv_coord_t width;           // Image width
-    lv_coord_t height;          // Image height
-    bool is_vector;             // Is this an SVG image?
-    lv_color_t color_mod;       // Color modifier
-    lv_opa_t opacity;          // Opacity
+    lv_obj_t* img_obj;
+    lv_svg_node_t* svg_doc;
+    int width;
+    int height;
+    bool is_svg;        // Added to track if image is SVG
 } SparkImage;
+
+
 
 #endif

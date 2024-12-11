@@ -1,155 +1,147 @@
-// spark_graphics_image.c
-#include "spark_graphics/image.h"
-#include "../internal.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
-#include "lvgl.h"
+#include "spark_graphics/image.h"
+#include "spark_graphics/layer.h"
 
-SparkImage* spark_graphics_load_image(const char* path) {
+static lv_obj_t* current_parent = NULL;
+
+static bool is_svg_file(const char* path) {
+    size_t len = strlen(path);
+    return (len > 4 && strcasecmp(path + len - 4, ".svg") == 0);
+}
+SparkImage* spark_graphics_new_image(const char* path) {
+    if (!path) {
+        printf("Invalid path\n");
+        return NULL;
+    }
+
     SparkImage* image = calloc(1, sizeof(SparkImage));
     if (!image) return NULL;
 
-    // Create LVGL image object
-    image->img = lv_img_create(lv_scr_act());
-    if (!image->img) {
-        free(image);
-        return NULL;
+    char full_path[1024];
+    snprintf(full_path, sizeof(full_path), "A:%s", path);
+    printf("Loading image with path: %s\n", full_path);
+
+    lv_obj_t* parent = spark_graphics_get_current_layer();
+
+    if (is_svg_file(path)) {
+        // Create container for SVG
+        image->img_obj = lv_obj_create(parent);
+        if (!image->img_obj) {
+            free(image);
+            return NULL;
+        }
+
+        // Load SVG file
+        FILE* file = fopen(path, "rb");
+        if (!file) {
+            printf("Failed to open SVG file\n");
+            lv_obj_del(image->img_obj);
+            free(image);
+            return NULL;
+        }
+
+        fseek(file, 0, SEEK_END);
+        size_t file_size = ftell(file);
+        fseek(file, 0, SEEK_SET);
+
+        char* svg_data = malloc(file_size + 1);
+        if (!svg_data) {
+            fclose(file);
+            lv_obj_del(image->img_obj);
+            free(image);
+            return NULL;
+        }
+
+        fread(svg_data, 1, file_size, file);
+        svg_data[file_size] = '\0';
+        fclose(file);
+
+        // Create SVG node
+        image->svg_doc = lv_svg_load_data(svg_data, file_size);
+        if (!image->svg_doc) {
+            printf("Failed to load SVG data\n");
+            free(svg_data);
+            lv_obj_del(image->img_obj);
+            free(image);
+            return NULL;
+        }
+
+        // Set initial size and position
+        lv_obj_set_size(image->img_obj, 100, 100);  // Default size
+        lv_obj_set_pos(image->img_obj, 0, 0);
+        
+        // Make container transparent
+        lv_obj_set_style_bg_opa(image->img_obj, LV_OPA_TRANSP, 0);
+
+        free(svg_data);
+        
+        image->width = 100;  // Default width
+        image->height = 100; // Default height
+        image->is_svg = true;
+
+    } else {
+        // Handle regular images (PNG, etc)
+        image->img_obj = lv_img_create(parent);
+        if (!image->img_obj) {
+            free(image);
+            return NULL;
+        }
+
+        lv_img_set_src(image->img_obj, full_path);
+        
+        // Get dimensions
+        lv_image_header_t header;
+        lv_res_t res = lv_image_decoder_get_info(full_path, &header);
+        if (res != LV_RES_OK) {
+            printf("Failed to get image dimensions\n");
+            lv_obj_del(image->img_obj);
+            free(image);
+            return NULL;
+        }
+        
+        image->width = header.w;
+        image->height = header.h;
+        image->is_svg = false;
+        image->svg_doc = NULL;
+
+        // Set initial size and position
+        lv_obj_set_size(image->img_obj, image->width, image->height);
+        lv_obj_set_pos(image->img_obj, 0, 0);
     }
 
-    // Check if it's an SVG file
-    const char* ext = strrchr(path, '.');
-    image->is_vector = (ext && strcasecmp(ext, ".svg") == 0);
-
-    // Set image source
-    lv_img_set_src(image->img, path);
-
-    // Get image size
-    lv_coord_t w = lv_obj_get_width(image->img);
-    lv_coord_t h = lv_obj_get_height(image->img);
-    image->width = w;
-    image->height = h;
-
-    // Set default properties
-    image->color_mod = lv_color_white();
-    image->opacity = LV_OPA_COVER;
-
-    // Configure image properties
-    lv_obj_clear_flag(image->img, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_style_img_recolor_opa(image->img, LV_OPA_COVER, 0);
-
+    printf("Image loaded: %dx%d pixels\n", image->width, image->height);
     return image;
 }
 
-SparkImage* spark_graphics_new_image_from_memory(const void* data, size_t size) {
-    SparkImage* image = calloc(1, sizeof(SparkImage));
-    if (!image) return NULL;
 
-    // Create LVGL image object
-    image->img = lv_img_create(lv_scr_act());
-    if (!image->img) {
-        free(image);
-        return NULL;
+void spark_graphics_image_set_color(SparkImage* image, float r, float g, float b, float a) {
+    if (!image || !image->img_obj) return;
+
+    lv_color_t color = lv_color_make((uint8_t)(r * 255), 
+                                    (uint8_t)(g * 255), 
+                                    (uint8_t)(b * 255));
+    lv_opa_t opacity = (lv_opa_t)(a * 255);
+
+    if (image->is_svg) {
+        lv_obj_set_style_img_recolor(image->svg_doc, color, 0);
+        lv_obj_set_style_img_opa(image->svg_doc, opacity, 0);
+    } else {
+        lv_obj_set_style_img_recolor(image->img_obj, color, 0);
+        lv_obj_set_style_img_opa(image->img_obj, opacity, 0);
     }
-
-    // Store the data and create image descriptor
-    image->src_data = data;
-    image->img_dsc = malloc(sizeof(lv_img_dsc_t));
-    if (!image->img_dsc) {
-        lv_obj_del(image->img);
-        free(image);
-        return NULL;
-    }
-
-    // Initialize image descriptor
-    image->img_dsc->data = data;
-    image->img_dsc->data_size = size;
-    image->img_dsc->header.w = 0;  // Will be set by LVGL
-    image->img_dsc->header.h = 0;  // Will be set by LVGL
-    image->img_dsc->header.cf = LV_COLOR_FORMAT_ARGB8888;  // Using ARGB8888 format
-
-    // Set image source
-    lv_img_set_src(image->img, image->img_dsc);
-
-    // Get image size
-    image->width = lv_obj_get_width(image->img);
-    image->height = lv_obj_get_height(image->img);
-
-    // Default properties
-    image->color_mod = lv_color_white();
-    image->opacity = LV_OPA_COVER;
-
-    // Configure image properties
-    lv_obj_clear_flag(image->img, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_style_img_recolor_opa(image->img, LV_OPA_COVER, 0);
-
-    return image;
-}
-
-void spark_graphics_image_draw(SparkImage* image, float x, float y, float w, float h) {
-    if (!image || !image->img) return;
-
-    // Update position and size
-    lv_obj_set_pos(image->img, (lv_coord_t)x, (lv_coord_t)y);
-    lv_obj_set_size(image->img, (lv_coord_t)w, (lv_coord_t)h);
-
-    // Update appearance
-    lv_obj_set_style_img_recolor(image->img, image->color_mod, 0);
-    lv_obj_set_style_img_opa(image->img, image->opacity, 0);
-
-    if (image->is_vector) {
-        // For SVGs, we need to set zoom level based on size
-        float zoom_x = (w * 256.0f) / image->width;
-        float zoom_y = (h * 256.0f) / image->height;
-        lv_img_set_zoom(image->img, (uint16_t)fminf(zoom_x, zoom_y));
-    }
-}
-
-void spark_graphics_image_draw_scaled(SparkImage* image, float x, float y, float sx, float sy) {
-    if (!image || !image->img) return;
-    
-    float w = image->width * sx;
-    float h = image->height * sy;
-    spark_graphics_image_draw(image, x, y, w, h);
-}
-
-void spark_graphics_image_draw_rotated(SparkImage* image, float x, float y, float r, 
-                                     float sx, float sy, float ox, float oy) {
-    if (!image || !image->img) return;
-
-    float w = image->width * sx;
-    float h = image->height * sy;
-    
-    // Calculate pivot point offset
-    float px = ox * sx;
-    float py = oy * sy;
-    
-    // Position adjusted for pivot
-    lv_obj_set_pos(image->img, (lv_coord_t)(x - px), (lv_coord_t)(y - py));
-    lv_obj_set_size(image->img, (lv_coord_t)w, (lv_coord_t)h);
-    
-    // Set rotation (LVGL uses tenths of degrees)
-    float angle = r * 180.0f / (float)M_PI * 10.0f;
-    lv_obj_set_style_transform_angle(image->img, (int16_t)angle, 0);
-    
-    // Set pivot point
-    lv_obj_set_style_transform_pivot_x(image->img, (lv_coord_t)px, 0);
-    lv_obj_set_style_transform_pivot_y(image->img, (lv_coord_t)py, 0);
-    
-    // Update appearance
-    lv_obj_set_style_img_recolor(image->img, image->color_mod, 0);
-    lv_obj_set_style_img_opa(image->img, image->opacity, 0);
 }
 
 void spark_graphics_image_free(SparkImage* image) {
     if (!image) return;
-
-    if (image->img) {
-        lv_obj_del(image->img);
+    if (image->svg_doc) {
+        lv_svg_node_delete(image->svg_doc);
     }
-    if (image->img_dsc) {
-        free(image->img_dsc);
+    if (image->img_obj) {
+        lv_obj_del(image->img_obj);
     }
     free(image);
 }
@@ -169,18 +161,6 @@ void spark_graphics_image_get_size(SparkImage* image, float* width, float* heigh
     if (height) *height = image->height;
 }
 
-void spark_graphics_image_set_color(SparkImage* image, float r, float g, float b, float a) {
-    if (!image || !image->img) return;
-
-    image->color_mod = lv_color_make((uint8_t)(r * 255), 
-                                    (uint8_t)(g * 255), 
-                                    (uint8_t)(b * 255));
-    image->opacity = (lv_opa_t)(a * 255);
-
-    lv_obj_set_style_img_recolor(image->img, image->color_mod, 0);
-    lv_obj_set_style_img_opa(image->img, image->opacity, 0);
-}
-
 float spark_graphics_image_get_height(SparkImage* image) {
     return image ? (float)image->height : 0;
 }
@@ -188,3 +168,4 @@ float spark_graphics_image_get_height(SparkImage* image) {
 float spark_graphics_image_get_width(SparkImage* image) {
     return image ? (float)image->width : 0;
 }
+

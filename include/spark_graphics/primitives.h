@@ -12,9 +12,6 @@ typedef struct {
     bool is_filled;       // Whether polygon is filled
 } spark_polygon_t;
 
-// Core functions
-void spark_graphics_set_layer(lv_obj_t* parent);
-
 // Basic shapes
 lv_obj_t* spark_graphics_rectangle(const char* mode, float x, float y, float w, float h);
 lv_obj_t* spark_graphics_circle(const char* mode, float x, float y, float radius);

@@ -16,7 +16,7 @@ CFLAGS=-Wall -Wextra \
 
 # Library flags
 LDFLAGS=-L/usr/local/lib -L.. \
--lspark2d -lSDL2 -lm
+-lspark2d -lSDL2 -lm -lpng
 
 # Emscripten configuration
 EM_INCLUDES=-I$(shell em-config CACHE)/sysroot/include

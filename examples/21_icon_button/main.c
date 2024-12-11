@@ -13,7 +13,7 @@ void button_callback(void* user_data) {
 
 void load(void) {
     // Load SVG image
-    image = spark_graphics_load_image("assets/home.svg");
+    image = spark_graphics_new_image("assets/home.svg");
     if (!image) {
         fprintf(stderr, "Failed to load image\n");
         return;

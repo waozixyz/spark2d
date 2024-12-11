@@ -7,5 +7,6 @@
 #include "spark_graphics/color.h"
 #include "spark_graphics/types.h"
 #include "spark_graphics/core.h"
+#include "spark_graphics/layer.h"
 
 #endif

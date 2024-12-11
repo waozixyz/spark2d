@@ -69,7 +69,7 @@
 
 #if LV_USE_STDLIB_MALLOC == LV_STDLIB_BUILTIN
     /** Size of memory available for `lv_malloc()` in bytes (>= 2kB) */
-    #define LV_MEM_SIZE (1024 * 1024U)          /**< [bytes] */
+    #define LV_MEM_SIZE (128 * 1024 * 1024U)          /**< [bytes] */
 
     /** Size of the memory expand for `lv_malloc()` in bytes */
     #define LV_MEM_POOL_EXPAND_SIZE 0
@@ -411,11 +411,11 @@
  *  If size is not set to 0, the decoder will fail to decode when the cache is full.
  *  If size is 0, the cache function is not enabled and the decoded memory will be
  *  released immediately after use. */
-#define LV_CACHE_DEF_SIZE       0
+#define LV_CACHE_DEF_SIZE       (512 * 1024)
 
 /** Default number of image header cache entries. The cache is used to store the headers of images
  *  The main logic is like `LV_CACHE_DEF_SIZE` but for image headers. */
-#define LV_IMAGE_HEADER_CACHE_DEF_CNT 0
+#define LV_IMAGE_HEADER_CACHE_DEF_CNT 20
 
 /** Number of stops allowed per gradient. Increase this to allow more stops.
  *  This adds (sizeof(lv_color_t) + 1) bytes per additional stop. */
@@ -796,11 +796,12 @@
 #endif
 
 /** API for open, read, etc. */
+
 #define LV_USE_FS_POSIX 0
 #if LV_USE_FS_POSIX
-    #define LV_FS_POSIX_LETTER '\0'     /**< Set an upper cased letter on which the drive will accessible (e.g. 'A') */
-    #define LV_FS_POSIX_PATH ""         /**< Set the working directory. File/directory paths will be appended to it. */
-    #define LV_FS_POSIX_CACHE_SIZE 0    /**< >0 to cache this number of bytes in lv_fs_read() */
+    #define LV_FS_POSIX_LETTER '\0'     // Use 'P' for POSIX
+    #define LV_FS_POSIX_PATH ""      // Use current directory
+    #define LV_FS_POSIX_CACHE_SIZE 0    
 #endif
 
 /** API for CreateFile, ReadFile, etc. */
@@ -846,18 +847,12 @@
     #define LV_FS_ARDUINO_SD_PATH ""         /**< Set the working directory. File/directory paths will be appended to it. */
 #endif
 
-/** LODEPNG decoder library */
-#define LV_USE_LODEPNG 1
+
+#define LV_USE_LODEPNG 1  // Use LODEPNG for PNG decoding
+#define LV_USE_TJPGD 1    // Enable JPG support
 
 /** PNG decoder(libpng) library */
-#define LV_USE_LIBPNG 0
-
-/** BMP decoder library */
-#define LV_USE_BMP 1
-
-/** JPG + split JPG decoder library.
- *  Split JPG is a custom format optimized for embedded systems. */
-#define LV_USE_TJPGD 1
+#define LV_USE_LIBPNG 1
 
 /** libjpeg-turbo decoder library.
  *  - Supports complete JPEG specifications and high-performance JPEG decoding. */

@@ -3,40 +3,24 @@
 #define SPARK_FILESYSTEM_H
 
 #include <stdbool.h>
-#include <stdio.h>
+#include <stddef.h>
 
-// File info structure
-typedef struct SparkFileInfo {
-    const char* filename;
-    size_t size;
-    bool is_directory;
-    long long modified_time;
-} SparkFileInfo;
+// Initialize the filesystem
+bool spark_filesystem_init(void);  // Changed from spark_fs_init
 
-// Core functions
-bool spark_filesystem_init(void);
-void spark_filesystem_shutdown(void);
+// Cleanup
+void spark_filesystem_shutdown(void);  // Changed from spark_fs_shutdown
 
-// Directory and file operations
-bool spark_filesystem_create_directory(const char* path);
-bool spark_filesystem_exists(const char* path);
-bool spark_filesystem_remove(const char* path);
-char** spark_filesystem_get_directory_items(const char* path, int* count);
-void spark_filesystem_free_directory_items(char** items, int count);
-
-// File I/O
+// Read file into memory
 bool spark_filesystem_read(const char* filename, char** data, size_t* size);
-bool spark_filesystem_write(const char* filename, const char* data, size_t size);
-bool spark_filesystem_append(const char* filename, const char* data, size_t size);
 
-// Path and identity management
-void spark_filesystem_set_identity(const char* identity);
-const char* spark_filesystem_get_identity(void);
-const char* spark_filesystem_get_save_directory(void);
-const char* spark_filesystem_get_user_directory(void);
+// Check if file exists
+bool spark_filesystem_exists(const char* filename);
 
-// File information
-SparkFileInfo* spark_filesystem_get_info(const char* path);
-void spark_filesystem_free_info(SparkFileInfo* info);
+// Get full path for LVGL 
+bool spark_filesystem_get_lvgl_path(const char* path, char* out_path, size_t out_size);
 
-#endif // SPARK_FILESYSTEM_H
+// Check if file format is supported
+bool spark_filesystem_is_supported_format(const char* path);
+
+#endif
